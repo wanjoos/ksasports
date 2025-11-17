@@ -492,6 +492,25 @@ app.get('/', (c) => {
             <div id="feed-container" class="space-y-4 md:space-y-6">
                 <!-- Feed items will be populated here -->
             </div>
+            
+            <!-- Infinite Scroll Loading Indicator -->
+            <div id="scroll-loading" class="hidden py-8 flex justify-center items-center">
+                <div class="flex flex-col items-center space-y-3">
+                    <div class="animate-spin rounded-full h-10 w-10 border-4 border-accent-blue border-t-transparent"></div>
+                    <p class="text-gray-400 text-sm">운동 기록 불러오는 중...</p>
+                </div>
+            </div>
+            
+            <!-- End of Results -->
+            <div id="scroll-end" class="hidden py-8 text-center">
+                <div class="text-gray-400 text-sm">
+                    <i class="fas fa-check-circle text-accent-green text-xl mb-2"></i>
+                    <p>모든 운동 기록을 불러왔습니다</p>
+                </div>
+            </div>
+            
+            <!-- Sentinel element for Intersection Observer -->
+            <div id="scroll-sentinel" class="h-4"></div>
         </div>
 
         <!-- Add Workout View -->

@@ -17,6 +17,17 @@ const filterState = {
     workoutType: 'all'
 };
 
+// Pagination state
+const paginationState = {
+    currentPage: 0,
+    pageSize: 10,
+    hasMore: true,
+    isLoading: false
+};
+
+// Intersection Observer for infinite scroll
+let scrollObserver = null;
+
 // Toast notification system
 function showToast(message, type = 'success') {
     const toastContainer = document.getElementById('toast-container');
@@ -626,13 +637,14 @@ function applyFilters() {
     }
     
     filteredWorkouts = filtered;
+    resetPagination(); // Reset pagination when filters change
     renderFeed();
     updateResultsCount();
     updateActiveFilters();
 }
 
-// Render feed with current filtered workouts
-function renderFeed() {
+// Render feed with current filtered workouts (with pagination)
+function renderFeed(append = false) {
     const feedContainer = document.getElementById('feed-container');
     
     if (filteredWorkouts.length === 0) {
@@ -642,10 +654,21 @@ function renderFeed() {
                 <p>${allWorkouts.length === 0 ? '아직 운동 기록이 없습니다. 첫 운동을 기록해보세요!' : '검색 결과가 없습니다. 필터를 조정해보세요.'}</p>
             </div>
         `;
+        hideScrollLoading();
+        hideScrollEnd();
+        paginationState.hasMore = false;
         return;
     }
     
-    feedContainer.innerHTML = filteredWorkouts.map(workout => `
+    // Calculate which workouts to show
+    const startIdx = 0;
+    const endIdx = (paginationState.currentPage + 1) * paginationState.pageSize;
+    const workoutsToShow = filteredWorkouts.slice(startIdx, endIdx);
+    
+    // Check if there are more workouts to load
+    paginationState.hasMore = endIdx < filteredWorkouts.length;
+    
+    const workoutHTML = workoutsToShow.map(workout => `
             <div class="workout-card bg-dark-card rounded-xl shadow-lg p-4 md:p-6 border border-dark-border">
                 <div class="flex items-start justify-between mb-4">
                     <div class="flex items-center space-x-2 md:space-x-3">
@@ -720,10 +743,92 @@ function renderFeed() {
                 </div>
             </div>
         `).join('');
-    } catch (error) {
-        console.error('Failed to load feed:', error);
-        showError('피드를 불러오는데 실패했습니다.');
+    
+    if (append) {
+        feedContainer.insertAdjacentHTML('beforeend', workoutHTML);
+    } else {
+        feedContainer.innerHTML = workoutHTML;
     }
+    
+    // Update scroll indicators
+    hideScrollLoading();
+    
+    if (paginationState.hasMore) {
+        hideScrollEnd();
+        setupScrollObserver();
+    } else {
+        showScrollEnd();
+        disconnectScrollObserver();
+    }
+}
+
+// Infinite scroll functions
+function setupScrollObserver() {
+    // Disconnect existing observer
+    disconnectScrollObserver();
+    
+    const sentinel = document.getElementById('scroll-sentinel');
+    if (!sentinel) return;
+    
+    const options = {
+        root: null,
+        rootMargin: '100px',
+        threshold: 0.1
+    };
+    
+    scrollObserver = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting && paginationState.hasMore && !paginationState.isLoading) {
+                loadMoreWorkouts();
+            }
+        });
+    }, options);
+    
+    scrollObserver.observe(sentinel);
+}
+
+function disconnectScrollObserver() {
+    if (scrollObserver) {
+        scrollObserver.disconnect();
+        scrollObserver = null;
+    }
+}
+
+function loadMoreWorkouts() {
+    if (paginationState.isLoading || !paginationState.hasMore) return;
+    
+    paginationState.isLoading = true;
+    showScrollLoading();
+    
+    // Simulate network delay for smooth UX
+    setTimeout(() => {
+        paginationState.currentPage++;
+        renderFeed(false); // Re-render with more items
+        paginationState.isLoading = false;
+    }, 500);
+}
+
+function resetPagination() {
+    paginationState.currentPage = 0;
+    paginationState.hasMore = true;
+    paginationState.isLoading = false;
+    disconnectScrollObserver();
+}
+
+function showScrollLoading() {
+    document.getElementById('scroll-loading')?.classList.remove('hidden');
+}
+
+function hideScrollLoading() {
+    document.getElementById('scroll-loading')?.classList.add('hidden');
+}
+
+function showScrollEnd() {
+    document.getElementById('scroll-end')?.classList.remove('hidden');
+}
+
+function hideScrollEnd() {
+    document.getElementById('scroll-end')?.classList.add('hidden');
 }
 
 // Comments functions
