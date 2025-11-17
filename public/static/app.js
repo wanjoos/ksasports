@@ -113,6 +113,54 @@ function setupEventListeners() {
     if (document.getElementById('weight-date')) {
         document.getElementById('weight-date').value = today;
     }
+    
+    // Image preview
+    const imageInput = document.getElementById('workout-images');
+    if (imageInput) {
+        imageInput.addEventListener('change', handleImagePreview);
+    }
+}
+
+// Image preview and compression
+async function handleImagePreview(e) {
+    const files = Array.from(e.target.files).slice(0, 3);
+    const previewContainer = document.getElementById('image-preview');
+    previewContainer.innerHTML = '';
+    
+    for (const file of files) {
+        if (file.size > 5 * 1024 * 1024) {
+            alert(`${file.name}이(가) 너무 큽니다. 5MB 이하로 선택해주세요.`);
+            continue;
+        }
+        
+        // Create preview
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            const div = document.createElement('div');
+            div.className = 'relative group';
+            div.innerHTML = `
+                <img src="${event.target.result}" class="w-full h-24 object-cover rounded-lg border border-dark-border">
+                <button type="button" onclick="removeImage(this)" 
+                    class="absolute top-1 right-1 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center opacity-0 group-hover:opacity-100 transition">
+                    <i class="fas fa-times text-xs"></i>
+                </button>
+                <div class="absolute bottom-1 left-1 bg-black bg-opacity-60 text-white text-xs px-2 py-1 rounded">
+                    ${(file.size / 1024).toFixed(0)}KB
+                </div>
+            `;
+            previewContainer.appendChild(div);
+        };
+        reader.readAsDataURL(file);
+    }
+}
+
+function removeImage(button) {
+    button.parentElement.remove();
+    // Reset file input if no images left
+    const previewContainer = document.getElementById('image-preview');
+    if (previewContainer.children.length === 0) {
+        document.getElementById('workout-images').value = '';
+    }
 }
 
 // Auth functions
@@ -390,16 +438,128 @@ async function loadFeed() {
                         <i class="fa${workout.liked_by_me ? 's' : 'r'} fa-heart ${workout.liked_by_me ? 'text-red-400' : ''}"></i>
                         <span id="likes-${workout.id}">${workout.likes_count}</span>
                     </button>
-                    <button class="flex items-center space-x-2 text-gray-400 hover:text-accent-blue transition text-sm md:text-base">
+                    <button onclick="toggleComments('${workout.id}')" class="flex items-center space-x-2 text-gray-400 hover:text-accent-blue transition text-sm md:text-base">
                         <i class="far fa-comment"></i>
-                        <span>${workout.comments_count}</span>
+                        <span id="comments-count-${workout.id}">${workout.comments_count}</span>
                     </button>
+                </div>
+                
+                <!-- Comments Section -->
+                <div id="comments-${workout.id}" class="hidden mt-4 pt-4 border-t border-dark-border">
+                    <div id="comments-list-${workout.id}" class="space-y-3 mb-4">
+                        <!-- Comments will be loaded here -->
+                    </div>
+                    <form onsubmit="addComment(event, '${workout.id}')" class="flex space-x-2">
+                        <input type="text" id="comment-input-${workout.id}" 
+                            placeholder="댓글을 입력하세요..." 
+                            class="flex-1 px-3 py-2 bg-dark-bg border border-dark-border rounded-lg text-sm focus:outline-none focus:ring-1 focus:ring-accent-blue text-gray-200"
+                            required>
+                        <button type="submit" class="px-4 py-2 bg-accent-blue text-white rounded-lg text-sm font-medium hover:bg-opacity-90 transition">
+                            <i class="fas fa-paper-plane"></i>
+                        </button>
+                    </form>
                 </div>
             </div>
         `).join('');
     } catch (error) {
         console.error('Failed to load feed:', error);
         showError('피드를 불러오는데 실패했습니다.');
+    }
+}
+
+// Comments functions
+async function toggleComments(workoutId) {
+    const commentsSection = document.getElementById(`comments-${workoutId}`);
+    const isHidden = commentsSection.classList.contains('hidden');
+    
+    if (isHidden) {
+        commentsSection.classList.remove('hidden');
+        await loadComments(workoutId);
+    } else {
+        commentsSection.classList.add('hidden');
+    }
+}
+
+async function loadComments(workoutId) {
+    try {
+        const response = await axios.get(`${API_BASE}/workouts/${workoutId}/comments`);
+        const comments = response.data;
+        
+        const commentsList = document.getElementById(`comments-list-${workoutId}`);
+        
+        if (comments.length === 0) {
+            commentsList.innerHTML = '<p class="text-gray-400 text-sm text-center py-2">첫 댓글을 작성해보세요!</p>';
+            return;
+        }
+        
+        commentsList.innerHTML = comments.map(comment => `
+            <div class="flex items-start space-x-2">
+                <div class="w-8 h-8 bg-gradient-to-br from-accent-green to-accent-blue rounded-full flex items-center justify-center flex-shrink-0">
+                    <span class="text-white text-xs font-bold">${comment.user.name[0]}</span>
+                </div>
+                <div class="flex-1">
+                    <div class="flex items-center space-x-2 mb-1">
+                        <span class="text-sm font-medium text-gray-200">${comment.user.name}</span>
+                        <span class="text-xs text-gray-400">${formatDate(comment.created_at)}</span>
+                        ${comment.user.id === currentUser.id ? `
+                            <button onclick="deleteComment('${workoutId}', '${comment.id}')" 
+                                class="text-xs text-red-400 hover:text-red-300">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        ` : ''}
+                    </div>
+                    <p class="text-sm text-gray-300">${comment.text}</p>
+                </div>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Failed to load comments:', error);
+    }
+}
+
+async function addComment(event, workoutId) {
+    event.preventDefault();
+    
+    const input = document.getElementById(`comment-input-${workoutId}`);
+    const text = input.value.trim();
+    
+    if (!text) return;
+    
+    try {
+        await axios.post(`${API_BASE}/workouts/${workoutId}/comments`, { text });
+        input.value = '';
+        
+        // Reload comments
+        await loadComments(workoutId);
+        
+        // Update comment count
+        const countElement = document.getElementById(`comments-count-${workoutId}`);
+        if (countElement) {
+            countElement.textContent = parseInt(countElement.textContent) + 1;
+        }
+    } catch (error) {
+        console.error('Failed to add comment:', error);
+        alert('댓글 작성에 실패했습니다.');
+    }
+}
+
+async function deleteComment(workoutId, commentId) {
+    if (!confirm('댓글을 삭제하시겠습니까?')) return;
+    
+    try {
+        await axios.delete(`${API_BASE}/workouts/${workoutId}/comments/${commentId}`);
+        
+        // Reload comments
+        await loadComments(workoutId);
+        
+        // Update comment count
+        const countElement = document.getElementById(`comments-count-${workoutId}`);
+        if (countElement) {
+            countElement.textContent = Math.max(0, parseInt(countElement.textContent) - 1);
+        }
+    } catch (error) {
+        console.error('Failed to delete comment:', error);
+        alert('댓글 삭제에 실패했습니다.');
     }
 }
 

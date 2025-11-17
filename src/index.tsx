@@ -350,8 +350,15 @@ app.get('/', (c) => {
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-2">이미지 (선택, 최대 3장)</label>
-                            <input type="file" id="workout-images" accept="image/jpeg,image/jpg,image/png,image/webp" multiple class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-300">
-                            <div id="image-preview" class="mt-3 flex space-x-2"></div>
+                            <div class="relative">
+                                <input type="file" id="workout-images" accept="image/jpeg,image/jpg,image/png,image/webp" multiple class="hidden">
+                                <button type="button" onclick="document.getElementById('workout-images').click()" 
+                                    class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg text-gray-300 hover:border-accent-blue transition flex items-center justify-center space-x-2">
+                                    <i class="fas fa-camera text-accent-blue"></i>
+                                    <span>사진 추가 (최대 3장, 5MB)</span>
+                                </button>
+                            </div>
+                            <div id="image-preview" class="mt-3 grid grid-cols-3 gap-2"></div>
                         </div>
                         <div class="flex space-x-4 pt-4">
                             <button type="submit" id="submit-workout-btn" class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold">
