@@ -5,6 +5,67 @@ let currentUser = null;
 
 const API_BASE = '/api';
 
+// Toast notification system
+function showToast(message, type = 'success') {
+    const toastContainer = document.getElementById('toast-container');
+    const toast = document.createElement('div');
+    
+    const icons = {
+        success: '✓',
+        error: '✕',
+        warning: '⚠',
+        info: 'ℹ'
+    };
+    
+    const colors = {
+        success: 'from-green-500 to-emerald-600',
+        error: 'from-red-500 to-rose-600',
+        warning: 'from-yellow-500 to-orange-600',
+        info: 'from-blue-500 to-cyan-600'
+    };
+    
+    toast.className = `transform transition-all duration-300 ease-out bg-gradient-to-r ${colors[type]} text-white px-6 py-4 rounded-lg shadow-2xl flex items-center space-x-3 min-w-[300px] animate-slide-in`;
+    toast.innerHTML = `
+        <div class="text-2xl">${icons[type]}</div>
+        <div class="flex-1 font-medium">${message}</div>
+        <button onclick="this.parentElement.remove()" class="text-white hover:text-gray-200">
+            <i class="fas fa-times"></i>
+        </button>
+    `;
+    
+    toastContainer.appendChild(toast);
+    
+    // Auto remove after 3 seconds
+    setTimeout(() => {
+        toast.classList.add('opacity-0', 'translate-x-full');
+        setTimeout(() => toast.remove(), 300);
+    }, 3000);
+}
+
+// Loading overlay
+function showLoading() {
+    document.getElementById('loading-overlay').classList.remove('hidden');
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay').classList.add('hidden');
+}
+
+// Button loading state
+function setButtonLoading(buttonId, loading = true) {
+    const button = document.getElementById(buttonId);
+    if (!button) return;
+    
+    if (loading) {
+        button.disabled = true;
+        button.dataset.originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>처리 중...';
+    } else {
+        button.disabled = false;
+        button.innerHTML = button.dataset.originalText || button.innerHTML;
+    }
+}
+
 // Axios config
 axios.defaults.headers.common['Authorization'] = token ? `Bearer ${token}` : '';
 
@@ -129,7 +190,7 @@ async function handleImagePreview(e) {
     
     for (const file of files) {
         if (file.size > 5 * 1024 * 1024) {
-            alert(`${file.name}이(가) 너무 큽니다. 5MB 이하로 선택해주세요.`);
+            showToast(`${file.name}이(가) 너무 큽니다. 5MB 이하로 선택해주세요.`, 'warning');
             continue;
         }
         
@@ -192,6 +253,7 @@ async function handleLogin(e) {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     
+    showLoading();
     try {
         const response = await axios.post(`${API_BASE}/auth/login`, { email, password });
         token = response.data.token;
@@ -199,9 +261,13 @@ async function handleLogin(e) {
         localStorage.setItem('token', token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
+        hideLoading();
+        showToast('로그인 성공! 환영합니다 🎉', 'success');
         showView('feed');
         await loadFeed();
     } catch (error) {
+        hideLoading();
+        showToast('로그인 실패: ' + (error.response?.data?.error || '이메일 또는 비밀번호를 확인해주세요'), 'error');
         showError('로그인 실패: ' + (error.response?.data?.error || error.message));
     }
 }
@@ -213,6 +279,7 @@ async function handleSignup(e) {
     const password = document.getElementById('signup-password').value;
     const height_cm = document.getElementById('signup-height').value;
     
+    showLoading();
     try {
         const response = await axios.post(`${API_BASE}/auth/signup`, { 
             name, email, password, height_cm: height_cm ? parseInt(height_cm) : null 
@@ -222,9 +289,13 @@ async function handleSignup(e) {
         localStorage.setItem('token', token);
         axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
         
+        hideLoading();
+        showToast('회원가입 완료! 환영합니다 🎉', 'success');
         showView('feed');
         await loadFeed();
     } catch (error) {
+        hideLoading();
+        showToast('회원가입 실패: ' + (error.response?.data?.error || error.message), 'error');
         showError('회원가입 실패: ' + (error.response?.data?.error || error.message));
     }
 }
@@ -543,7 +614,7 @@ async function addComment(event, workoutId) {
         }
     } catch (error) {
         console.error('Failed to add comment:', error);
-        alert('댓글 작성에 실패했습니다.');
+        showToast('댓글 작성에 실패했습니다.', 'error');
     }
 }
 
@@ -563,7 +634,7 @@ async function deleteComment(workoutId, commentId) {
         }
     } catch (error) {
         console.error('Failed to delete comment:', error);
-        alert('댓글 삭제에 실패했습니다.');
+        showToast('댓글 삭제에 실패했습니다.', 'error');
     }
 }
 
@@ -638,12 +709,13 @@ async function handleAddWorkout(e) {
         
         await axios.post(`${API_BASE}/workouts`, data);
         
+        showToast('운동 기록이 추가되었습니다! 🎉', 'success');
         showView('feed');
         document.getElementById('add-workout-form').reset();
         document.getElementById('image-preview').innerHTML = '';
     } catch (error) {
         console.error('Failed to add workout:', error);
-        alert('운동 기록 추가에 실패했습니다: ' + (error.response?.data?.error || error.message));
+        showToast('운동 기록 추가에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
     } finally {
         submitBtn.disabled = false;
         submitText.textContent = originalText;
@@ -674,7 +746,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             
             if (files.length > 3) {
-                alert('최대 3장까지만 업로드할 수 있습니다.');
+                showToast('최대 3장까지만 업로드할 수 있습니다.', 'warning');
             }
         });
     }
@@ -1013,7 +1085,7 @@ async function handleAddWeight(e) {
         await loadWeight();
     } catch (error) {
         console.error('Failed to add weight:', error);
-        alert('체중 기록 추가에 실패했습니다: ' + (error.response?.data?.error || error.message));
+        showToast('체중 기록 추가에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
     }
 }
 
@@ -1027,7 +1099,7 @@ async function deleteWeight(weightId) {
         await loadWeight();
     } catch (error) {
         console.error('Failed to delete weight:', error);
-        alert('체중 기록 삭제에 실패했습니다');
+        showToast('체중 기록 삭제에 실패했습니다', 'error');
     }
 }
 
@@ -1183,10 +1255,11 @@ async function deleteWorkout(workoutId) {
     
     try {
         await axios.delete(`${API_BASE}/workouts/${workoutId}`);
+        showToast('운동 기록이 삭제되었습니다', 'success');
         await loadFeed();
     } catch (error) {
         console.error('Failed to delete workout:', error);
-        alert('운동 기록 삭제에 실패했습니다');
+        showToast('운동 기록 삭제에 실패했습니다', 'error');
     }
 }
 
@@ -1230,9 +1303,9 @@ async function handleEditProfile(e) {
         currentUser = response.data.user;
         hideEditProfileModal();
         updateNavigation();
-        alert('프로필이 업데이트되었습니다');
+        showToast('프로필이 업데이트되었습니다', 'success');
     } catch (error) {
         console.error('Failed to update profile:', error);
-        alert('프로필 업데이트에 실패했습니다: ' + (error.response?.data?.error || error.message));
+        showToast('프로필 업데이트에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
     }
 }

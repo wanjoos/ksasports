@@ -187,6 +187,20 @@ app.get('/', (c) => {
         html {
             scroll-behavior: smooth;
         }
+        /* Toast animation */
+        @keyframes slide-in {
+            from {
+                transform: translateX(100%);
+                opacity: 0;
+            }
+            to {
+                transform: translateX(0);
+                opacity: 1;
+            }
+        }
+        .animate-slide-in {
+            animation: slide-in 0.3s ease-out;
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-gray-100">
@@ -555,6 +569,17 @@ app.get('/', (c) => {
                     <button type="button" id="cancel-profile-modal" class="flex-1 bg-gray-700 text-gray-200 py-3 rounded-lg hover:bg-gray-600 transition font-semibold">취소</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div id="toast-container" class="fixed top-4 right-4 z-50 space-y-2"></div>
+
+    <!-- Global Loading Overlay -->
+    <div id="loading-overlay" class="hidden fixed inset-0 bg-black bg-opacity-50 backdrop-blur-sm z-50 flex items-center justify-center">
+        <div class="bg-dark-card rounded-xl p-6 flex flex-col items-center space-y-4 border border-dark-border">
+            <div class="animate-spin rounded-full h-12 w-12 border-4 border-accent-blue border-t-transparent"></div>
+            <p class="text-gray-200 font-medium">로딩 중...</p>
         </div>
     </div>
 
