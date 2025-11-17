@@ -69,8 +69,35 @@ function setButtonLoading(buttonId, loading = true) {
 // Axios config
 axios.defaults.headers.common['Authorization'] = token ? `Bearer ${token}` : '';
 
+// Theme management
+function initTheme() {
+    const savedTheme = localStorage.getItem('theme') || 'dark';
+    document.documentElement.setAttribute('data-theme', savedTheme);
+    updateThemeIcon(savedTheme);
+}
+
+function toggleTheme() {
+    const currentTheme = document.documentElement.getAttribute('data-theme');
+    const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+    
+    document.documentElement.setAttribute('data-theme', newTheme);
+    localStorage.setItem('theme', newTheme);
+    updateThemeIcon(newTheme);
+    
+    showToast(newTheme === 'dark' ? '다크 모드로 변경되었습니다 🌙' : '라이트 모드로 변경되었습니다 ☀️', 'info');
+}
+
+function updateThemeIcon(theme) {
+    const icon = document.getElementById('theme-icon');
+    if (icon) {
+        icon.className = theme === 'dark' ? 'fas fa-sun text-xl text-gray-300' : 'fas fa-moon text-xl text-gray-700';
+    }
+}
+
 // Initialize app
 document.addEventListener('DOMContentLoaded', async () => {
+    initTheme();
+    
     if (token) {
         await loadCurrentUser();
         if (currentUser) {
@@ -180,6 +207,9 @@ function setupEventListeners() {
     if (imageInput) {
         imageInput.addEventListener('change', handleImagePreview);
     }
+    
+    // Theme toggle
+    document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
 }
 
 // Image preview and compression

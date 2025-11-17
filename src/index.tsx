@@ -52,6 +52,7 @@ app.get('/', (c) => {
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
     <script>
         tailwind.config = {
+            darkMode: 'class',
             theme: {
                 extend: {
                     colors: {
@@ -68,13 +69,68 @@ app.get('/', (c) => {
         }
     </script>
     <style>
+        :root {
+            --bg-primary: #0a0e27;
+            --bg-secondary: #1a1f3a;
+            --card-bg: #141b2d;
+            --border-color: #1f2937;
+            --text-primary: #e5e7eb;
+            --text-secondary: #9ca3af;
+            --text-tertiary: #6b7280;
+        }
+        
+        [data-theme="light"] {
+            --bg-primary: #f3f4f6;
+            --bg-secondary: #e5e7eb;
+            --card-bg: #ffffff;
+            --border-color: #d1d5db;
+            --text-primary: #111827;
+            --text-secondary: #4b5563;
+            --text-tertiary: #6b7280;
+        }
+        
         * {
             -webkit-tap-highlight-color: transparent;
         }
         body {
-            background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
+            background: linear-gradient(135deg, var(--bg-primary) 0%, var(--bg-secondary) 100%);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             overflow-x: hidden;
+            transition: background 0.3s ease;
+        }
+        
+        /* Light mode overrides */
+        [data-theme="light"] body {
+            color: var(--text-primary);
+        }
+        [data-theme="light"] .bg-dark-card {
+            background: var(--card-bg) !important;
+        }
+        [data-theme="light"] .bg-dark-bg {
+            background: var(--bg-secondary) !important;
+        }
+        [data-theme="light"] .border-dark-border {
+            border-color: var(--border-color) !important;
+        }
+        [data-theme="light"] .text-gray-100,
+        [data-theme="light"] .text-gray-200,
+        [data-theme="light"] .text-gray-300 {
+            color: var(--text-primary) !important;
+        }
+        [data-theme="light"] .text-gray-400,
+        [data-theme="light"] .text-gray-500 {
+            color: var(--text-secondary) !important;
+        }
+        [data-theme="light"] .text-gray-600 {
+            color: var(--text-tertiary) !important;
+        }
+        [data-theme="light"] .workout-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        [data-theme="light"] .stat-card {
+            background: linear-gradient(135deg, #ffffff 0%, #f9fafb 100%);
+            border: 1px solid #e5e7eb;
         }
         .workout-card {
             transition: all 0.3s ease;
@@ -212,8 +268,13 @@ app.get('/', (c) => {
                     <i class="fas fa-running text-accent-blue text-2xl md:text-3xl"></i>
                     <h1 class="text-lg md:text-2xl font-bold gradient-text">WORKOUT</h1>
                 </div>
-                <div id="nav-menu" class="desktop-nav flex items-center space-x-4 md:space-x-6">
-                    <!-- Will be populated by JS for desktop -->
+                <div class="flex items-center space-x-4">
+                    <button id="theme-toggle" class="p-2 rounded-lg hover:bg-dark-border transition">
+                        <i id="theme-icon" class="fas fa-sun text-xl text-gray-300"></i>
+                    </button>
+                    <div id="nav-menu" class="desktop-nav flex items-center space-x-4 md:space-x-6">
+                        <!-- Will be populated by JS for desktop -->
+                    </div>
                 </div>
             </div>
         </div>
