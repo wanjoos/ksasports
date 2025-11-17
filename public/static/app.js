@@ -46,6 +46,9 @@ function setupEventListeners() {
         if (e.target.id === 'btn-add-weight') showAddWeightModal();
         if (e.target.id === 'close-weight-modal') hideAddWeightModal();
         if (e.target.id === 'cancel-weight-modal') hideAddWeightModal();
+        if (e.target.id === 'nav-edit-profile') showEditProfileModal();
+        if (e.target.id === 'close-profile-modal') hideEditProfileModal();
+        if (e.target.id === 'cancel-profile-modal') hideEditProfileModal();
     });
     
     // Add workout form
@@ -53,6 +56,9 @@ function setupEventListeners() {
     
     // Add weight form
     document.getElementById('add-weight-form')?.addEventListener('submit', handleAddWeight);
+    
+    // Edit profile form
+    document.getElementById('edit-profile-form')?.addEventListener('submit', handleEditProfile);
     
     // Set default datetime
     const now = new Date();
@@ -191,6 +197,9 @@ function updateNavigation() {
             </button>
             <div class="flex items-center space-x-3 ml-4 pl-4 border-l">
                 <span class="text-sm text-gray-600">${currentUser.name}</span>
+                <button id="nav-edit-profile" class="text-sm text-blue-600 hover:text-blue-700">
+                    <i class="fas fa-user-edit"></i>
+                </button>
                 <button id="nav-logout" class="text-sm text-red-600 hover:text-red-700">로그아웃</button>
             </div>
         `;
@@ -618,3 +627,41 @@ document.addEventListener('click', (e) => {
         });
     }
 });
+
+// Profile functions
+function showEditProfileModal() {
+    const modal = document.getElementById('edit-profile-modal');
+    modal.classList.remove('hidden');
+    
+    // Pre-fill with current user data
+    document.getElementById('profile-name').value = currentUser.name;
+    document.getElementById('profile-height').value = currentUser.height_cm || '';
+}
+
+function hideEditProfileModal() {
+    const modal = document.getElementById('edit-profile-modal');
+    modal.classList.add('hidden');
+    document.getElementById('edit-profile-form').reset();
+}
+
+async function handleEditProfile(e) {
+    e.preventDefault();
+    
+    const name = document.getElementById('profile-name').value;
+    const height_cm = document.getElementById('profile-height').value;
+    
+    try {
+        const response = await axios.put(`${API_BASE}/me/profile`, {
+            name,
+            height_cm: height_cm ? parseInt(height_cm) : null
+        });
+        
+        currentUser = response.data.user;
+        hideEditProfileModal();
+        updateNavigation();
+        alert('프로필이 업데이트되었습니다');
+    } catch (error) {
+        console.error('Failed to update profile:', error);
+        alert('프로필 업데이트에 실패했습니다: ' + (error.response?.data?.error || error.message));
+    }
+}
