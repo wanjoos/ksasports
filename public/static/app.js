@@ -229,7 +229,21 @@ async function loadFeed() {
                             <div class="text-sm text-gray-500">${formatDate(workout.created_at)}</div>
                         </div>
                     </div>
-                    <div class="text-2xl">${getWorkoutEmoji(workout.workout_type)}</div>
+                    <div class="flex items-center space-x-3">
+                        <div class="text-2xl">${getWorkoutEmoji(workout.workout_type)}</div>
+                        ${workout.user.id === currentUser.id ? `
+                            <div class="relative">
+                                <button onclick="toggleWorkoutMenu('${workout.id}')" class="text-gray-400 hover:text-gray-600">
+                                    <i class="fas fa-ellipsis-v"></i>
+                                </button>
+                                <div id="menu-${workout.id}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
+                                    <button onclick="deleteWorkout('${workout.id}')" class="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100 rounded-lg">
+                                        <i class="fas fa-trash mr-2"></i>삭제
+                                    </button>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
                 </div>
                 
                 <div class="mb-4">
@@ -568,3 +582,39 @@ function getWorkoutTypeName(type) {
     };
     return names[type] || '운동';
 }
+
+function toggleWorkoutMenu(workoutId) {
+    const menu = document.getElementById(`menu-${workoutId}`);
+    
+    // Close all other menus
+    document.querySelectorAll('[id^="menu-"]').forEach(m => {
+        if (m.id !== `menu-${workoutId}`) {
+            m.classList.add('hidden');
+        }
+    });
+    
+    menu.classList.toggle('hidden');
+}
+
+async function deleteWorkout(workoutId) {
+    if (!confirm('이 운동 기록을 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        await axios.delete(`${API_BASE}/workouts/${workoutId}`);
+        await loadFeed();
+    } catch (error) {
+        console.error('Failed to delete workout:', error);
+        alert('운동 기록 삭제에 실패했습니다');
+    }
+}
+
+// Close menus when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('[onclick^="toggleWorkoutMenu"]')) {
+        document.querySelectorAll('[id^="menu-"]').forEach(m => {
+            m.classList.add('hidden');
+        });
+    }
+});

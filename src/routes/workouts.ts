@@ -351,4 +351,101 @@ workouts.post('/:id/comments', authMiddleware, async (c) => {
   }
 });
 
+// Update workout
+workouts.put('/:id', authMiddleware, async (c) => {
+  try {
+    const db = c.env.DB;
+    const userId = c.get('userId');
+    const workoutId = c.req.param('id');
+    
+    // Check ownership
+    const existingWorkout = await db.prepare(
+      'SELECT * FROM workouts WHERE id = ? AND user_id = ?'
+    ).bind(workoutId, userId).first();
+    
+    if (!existingWorkout) {
+      return c.json({ error: 'Workout not found or unauthorized' }, 404);
+    }
+    
+    const { workout_type, started_at, duration_min, distance_km, pace_sec_per_km, calories, memo } = await c.req.json();
+    
+    await db.prepare(
+      `UPDATE workouts 
+       SET workout_type = ?, started_at = ?, duration_min = ?, 
+           distance_km = ?, pace_sec_per_km = ?, calories = ?, memo = ?,
+           updated_at = CURRENT_TIMESTAMP
+       WHERE id = ?`
+    ).bind(
+      workout_type,
+      started_at,
+      duration_min,
+      distance_km || null,
+      pace_sec_per_km || null,
+      calories || null,
+      memo || null,
+      workoutId
+    ).run();
+    
+    const updatedWorkout = await db.prepare(
+      'SELECT * FROM workouts WHERE id = ?'
+    ).bind(workoutId).first<Workout>();
+    
+    return c.json(updatedWorkout);
+  } catch (error) {
+    console.error('Update workout error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Delete workout
+workouts.delete('/:id', authMiddleware, async (c) => {
+  try {
+    const db = c.env.DB;
+    const userId = c.get('userId');
+    const workoutId = c.req.param('id');
+    
+    // Check ownership
+    const existingWorkout = await db.prepare(
+      'SELECT * FROM workouts WHERE id = ? AND user_id = ?'
+    ).bind(workoutId, userId).first();
+    
+    if (!existingWorkout) {
+      return c.json({ error: 'Workout not found or unauthorized' }, 404);
+    }
+    
+    // Delete workout (cascade will delete related images, comments, likes)
+    await db.prepare('DELETE FROM workouts WHERE id = ?').bind(workoutId).run();
+    
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Delete workout error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
+// Delete comment
+workouts.delete('/:workoutId/comments/:commentId', authMiddleware, async (c) => {
+  try {
+    const db = c.env.DB;
+    const userId = c.get('userId');
+    const commentId = c.req.param('commentId');
+    
+    // Check ownership
+    const existingComment = await db.prepare(
+      'SELECT * FROM comments WHERE id = ? AND user_id = ?'
+    ).bind(commentId, userId).first();
+    
+    if (!existingComment) {
+      return c.json({ error: 'Comment not found or unauthorized' }, 404);
+    }
+    
+    await db.prepare('DELETE FROM comments WHERE id = ?').bind(commentId).run();
+    
+    return c.json({ success: true });
+  } catch (error) {
+    console.error('Delete comment error:', error);
+    return c.json({ error: 'Internal server error' }, 500);
+  }
+});
+
 export default workouts;
