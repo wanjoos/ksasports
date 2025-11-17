@@ -98,7 +98,7 @@ axios.defaults.headers.common['Authorization'] = token ? `Bearer ${token}` : '';
 
 // Theme management
 function initTheme() {
-    const savedTheme = localStorage.getItem('theme') || 'dark';
+    const savedTheme = localStorage.getItem('theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
     updateThemeIcon(savedTheme);
 }
@@ -2773,7 +2773,7 @@ async function loadChallenges() {
 // Load user badges
 async function loadBadges() {
     try {
-        const response = await axios.get(`${API_BASE}/challenges/badges/me`);
+        const response = await axios.get(`${API_BASE}/challenges/badges`);
         const { earned, all } = response.data;
         
         const container = document.getElementById('badges-collection');
