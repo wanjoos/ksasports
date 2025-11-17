@@ -4,6 +4,7 @@ let currentView = 'feed';
 let currentUser = null;
 let allWorkouts = []; // Store all workouts for filtering
 let filteredWorkouts = []; // Store filtered results
+let currentFeedFilter = 'all'; // 'all' or 'following'
 
 const API_BASE = '/api';
 
@@ -27,6 +28,9 @@ const paginationState = {
 
 // Intersection Observer for infinite scroll
 let scrollObserver = null;
+
+// Social state
+let searchTimeout = null;
 
 // Toast notification system
 function showToast(message, type = 'success') {
@@ -225,6 +229,11 @@ function setupEventListeners() {
         // Edit workout modal
         if (e.target.id === 'close-edit-workout-modal') hideEditWorkoutModal();
         if (e.target.id === 'cancel-edit-workout-modal') hideEditWorkoutModal();
+        
+        // Social modals
+        if (e.target.id === 'btn-search-users') showUserSearchModal();
+        if (e.target.id === 'close-user-search-modal') hideUserSearchModal();
+        if (e.target.id === 'close-user-profile-modal') hideUserProfileModal();
     });
     
     // Add workout form
@@ -314,10 +323,24 @@ function setupEventListeners() {
             filterState.workoutType = typeBtn.dataset.type;
             applyFilters();
         }
+        
+        // Feed filter buttons
+        const feedFilterBtn = e.target.closest('.feed-filter-btn');
+        if (feedFilterBtn) {
+            switchFeedFilter(feedFilterBtn.dataset.feedFilter);
+        }
     });
     
     // Clear all filters
     document.getElementById('clear-filters')?.addEventListener('click', clearAllFilters);
+    
+    // User search input with debounce
+    document.getElementById('user-search-input')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            searchUsers(e.target.value.trim());
+        }, 300);
+    });
     
     // Lightbox keyboard navigation
     document.addEventListener('keydown', handleLightboxKeyboard);
@@ -615,7 +638,14 @@ function updateNavigation() {
 // Feed functions
 async function loadFeed() {
     try {
-        const response = await axios.get(`${API_BASE}/workouts/feed`);
+        let response;
+        
+        if (currentFeedFilter === 'following') {
+            response = await axios.get(`${API_BASE}/social/feed/following`);
+        } else {
+            response = await axios.get(`${API_BASE}/workouts/feed`);
+        }
+        
         allWorkouts = response.data;
         
         // Apply filters
@@ -2281,6 +2311,301 @@ async function deleteGoal(goalId) {
     } catch (error) {
         console.error('Failed to delete goal:', error);
         showToast('목표 삭제에 실패했습니다', 'error');
+    }
+}
+
+// Social functions
+function showUserSearchModal() {
+    document.getElementById('user-search-modal').classList.remove('hidden');
+    document.getElementById('user-search-input').value = '';
+    document.getElementById('user-search-results').innerHTML = `
+        <div class="text-center text-gray-400 py-8">
+            <i class="fas fa-users text-4xl mb-3"></i>
+            <p>이름이나 이메일로 친구를 검색해보세요</p>
+        </div>
+    `;
+}
+
+function hideUserSearchModal() {
+    document.getElementById('user-search-modal').classList.add('hidden');
+}
+
+async function searchUsers(query) {
+    if (query.length < 2) {
+        document.getElementById('user-search-results').innerHTML = `
+            <div class="text-center text-gray-400 py-8">
+                <i class="fas fa-users text-4xl mb-3"></i>
+                <p>최소 2글자 이상 입력해주세요</p>
+            </div>
+        `;
+        return;
+    }
+    
+    try {
+        const response = await axios.get(`${API_BASE}/social/users/search?q=${encodeURIComponent(query)}`);
+        const users = response.data;
+        
+        const resultsContainer = document.getElementById('user-search-results');
+        
+        if (users.length === 0) {
+            resultsContainer.innerHTML = `
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-search text-4xl mb-3"></i>
+                    <p>검색 결과가 없습니다</p>
+                </div>
+            `;
+            return;
+        }
+        
+        resultsContainer.innerHTML = users.map(user => `
+            <div class="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-border hover:border-accent-blue transition">
+                <div class="flex items-center space-x-3 flex-1 cursor-pointer" onclick="showUserProfile('${user.id}')">
+                    <div class="w-12 h-12 bg-gradient-to-br from-accent-blue to-accent-green rounded-full flex items-center justify-center">
+                        <span class="text-white font-bold text-lg">${user.name[0]}</span>
+                    </div>
+                    <div class="flex-1">
+                        <div class="font-semibold text-gray-200">${user.name}</div>
+                        <div class="text-sm text-gray-400">${user.email}</div>
+                        ${user.follows_you ? '<span class="text-xs text-accent-blue">나를 팔로우함</span>' : ''}
+                    </div>
+                </div>
+                <button onclick="toggleFollow('${user.id}', ${user.is_following})" 
+                    class="px-4 py-2 rounded-lg font-medium text-sm transition ${user.is_following ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-accent-blue text-white hover:bg-opacity-90'}">
+                    ${user.is_following ? '팔로잉' : '팔로우'}
+                </button>
+            </div>
+        `).join('');
+    } catch (error) {
+        console.error('Search users error:', error);
+        showToast('사용자 검색에 실패했습니다', 'error');
+    }
+}
+
+async function showUserProfile(userId) {
+    try {
+        showLoading();
+        const response = await axios.get(`${API_BASE}/social/users/${userId}`);
+        const user = response.data;
+        
+        hideUserSearchModal();
+        
+        const content = document.getElementById('user-profile-content');
+        content.innerHTML = `
+            <div class="text-center mb-6">
+                <div class="w-24 h-24 bg-gradient-to-br from-accent-blue to-accent-green rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-white font-bold text-4xl">${user.name[0]}</span>
+                </div>
+                <h3 class="text-2xl font-bold text-gray-200 mb-2">${user.name}</h3>
+                <p class="text-gray-400">${user.email}</p>
+                ${user.follows_you ? '<p class="text-sm text-accent-blue mt-2">나를 팔로우합니다</p>' : ''}
+            </div>
+            
+            <div class="grid grid-cols-3 gap-4 mb-6">
+                <div class="text-center p-4 bg-dark-bg rounded-lg">
+                    <div class="text-2xl font-bold text-accent-blue">${user.workout_count}</div>
+                    <div class="text-sm text-gray-400">운동</div>
+                </div>
+                <div class="text-center p-4 bg-dark-bg rounded-lg cursor-pointer hover:bg-opacity-80" onclick="showFollowersList('${user.id}')">
+                    <div class="text-2xl font-bold text-accent-green">${user.followers_count}</div>
+                    <div class="text-sm text-gray-400">팔로워</div>
+                </div>
+                <div class="text-center p-4 bg-dark-bg rounded-lg cursor-pointer hover:bg-opacity-80" onclick="showFollowingList('${user.id}')">
+                    <div class="text-2xl font-bold text-accent-purple">${user.following_count}</div>
+                    <div class="text-sm text-gray-400">팔로잉</div>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-2 gap-4 mb-6">
+                <div class="p-4 bg-dark-bg rounded-lg">
+                    <div class="text-sm text-gray-400 mb-1">총 거리</div>
+                    <div class="text-xl font-bold text-gray-200">${user.total_distance_km.toFixed(1)} km</div>
+                </div>
+                <div class="p-4 bg-dark-bg rounded-lg">
+                    <div class="text-sm text-gray-400 mb-1">총 시간</div>
+                    <div class="text-xl font-bold text-gray-200">${user.total_duration_min} 분</div>
+                </div>
+            </div>
+            
+            <button id="profile-follow-btn" onclick="toggleFollowFromProfile('${user.id}', ${user.is_following})" 
+                class="w-full py-3 rounded-lg font-semibold transition ${user.is_following ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-accent-blue text-white hover:bg-opacity-90'}">
+                ${user.is_following ? '팔로잉 중' : '팔로우'}
+            </button>
+        `;
+        
+        document.getElementById('user-profile-modal').classList.remove('hidden');
+        hideLoading();
+    } catch (error) {
+        hideLoading();
+        console.error('Load user profile error:', error);
+        showToast('프로필을 불러오는데 실패했습니다', 'error');
+    }
+}
+
+function hideUserProfileModal() {
+    document.getElementById('user-profile-modal').classList.add('hidden');
+}
+
+async function toggleFollow(userId, isFollowing) {
+    try {
+        if (isFollowing) {
+            await axios.delete(`${API_BASE}/social/users/${userId}/follow`);
+            showToast('언팔로우했습니다', 'info');
+        } else {
+            await axios.post(`${API_BASE}/social/users/${userId}/follow`);
+            showToast('팔로우했습니다! 👥', 'success');
+        }
+        
+        // Refresh search results
+        const searchInput = document.getElementById('user-search-input');
+        if (searchInput.value) {
+            await searchUsers(searchInput.value);
+        }
+    } catch (error) {
+        console.error('Toggle follow error:', error);
+        showToast('팔로우 변경에 실패했습니다', 'error');
+    }
+}
+
+async function toggleFollowFromProfile(userId, isFollowing) {
+    try {
+        if (isFollowing) {
+            await axios.delete(`${API_BASE}/social/users/${userId}/follow`);
+            showToast('언팔로우했습니다', 'info');
+        } else {
+            await axios.post(`${API_BASE}/social/users/${userId}/follow`);
+            showToast('팔로우했습니다! 👥', 'success');
+        }
+        
+        // Reload profile
+        hideUserProfileModal();
+        await showUserProfile(userId);
+    } catch (error) {
+        console.error('Toggle follow error:', error);
+        showToast('팔로우 변경에 실패했습니다', 'error');
+    }
+}
+
+async function switchFeedFilter(filter) {
+    currentFeedFilter = filter;
+    
+    // Update button states
+    document.querySelectorAll('.feed-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.feedFilter === filter) {
+            btn.classList.add('active');
+        }
+    });
+    
+    // Load appropriate feed
+    await loadFeed();
+}
+
+// Update loadFeed to support following filter
+async function loadFeedWithFilter() {
+    try {
+        let response;
+        
+        if (currentFeedFilter === 'following') {
+            response = await axios.get(`${API_BASE}/social/feed/following`);
+        } else {
+            response = await axios.get(`${API_BASE}/workouts/feed`);
+        }
+        
+        allWorkouts = response.data;
+        
+        // Apply filters
+        applyFilters();
+    } catch (error) {
+        console.error('Error loading feed:', error);
+        showToast('피드를 불러오는데 실패했습니다', 'error');
+    }
+}
+
+async function showFollowersList(userId) {
+    try {
+        showLoading();
+        const response = await axios.get(`${API_BASE}/social/users/${userId}/followers`);
+        const followers = response.data;
+        
+        hideLoading();
+        
+        if (followers.length === 0) {
+            showToast('팔로워가 없습니다', 'info');
+            return;
+        }
+        
+        // Show in search modal
+        hideUserProfileModal();
+        showUserSearchModal();
+        
+        document.getElementById('user-search-results').innerHTML = `
+            <div class="mb-4 text-lg font-bold text-gray-200">팔로워 목록</div>
+            ${followers.map(user => `
+                <div class="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-border hover:border-accent-blue transition">
+                    <div class="flex items-center space-x-3 flex-1 cursor-pointer" onclick="showUserProfile('${user.id}')">
+                        <div class="w-12 h-12 bg-gradient-to-br from-accent-blue to-accent-green rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">${user.name[0]}</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-semibold text-gray-200">${user.name}</div>
+                            <div class="text-sm text-gray-400">${user.email}</div>
+                        </div>
+                    </div>
+                    <button onclick="toggleFollow('${user.id}', ${user.is_following})" 
+                        class="px-4 py-2 rounded-lg font-medium text-sm transition ${user.is_following ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-accent-blue text-white hover:bg-opacity-90'}">
+                        ${user.is_following ? '팔로잉' : '팔로우'}
+                    </button>
+                </div>
+            `).join('')}
+        `;
+    } catch (error) {
+        hideLoading();
+        console.error('Load followers error:', error);
+        showToast('팔로워 목록을 불러오는데 실패했습니다', 'error');
+    }
+}
+
+async function showFollowingList(userId) {
+    try {
+        showLoading();
+        const response = await axios.get(`${API_BASE}/social/users/${userId}/following`);
+        const following = response.data;
+        
+        hideLoading();
+        
+        if (following.length === 0) {
+            showToast('팔로잉이 없습니다', 'info');
+            return;
+        }
+        
+        // Show in search modal
+        hideUserProfileModal();
+        showUserSearchModal();
+        
+        document.getElementById('user-search-results').innerHTML = `
+            <div class="mb-4 text-lg font-bold text-gray-200">팔로잉 목록</div>
+            ${following.map(user => `
+                <div class="flex items-center justify-between p-4 bg-dark-bg rounded-lg border border-dark-border hover:border-accent-blue transition">
+                    <div class="flex items-center space-x-3 flex-1 cursor-pointer" onclick="showUserProfile('${user.id}')">
+                        <div class="w-12 h-12 bg-gradient-to-br from-accent-blue to-accent-green rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold text-lg">${user.name[0]}</span>
+                        </div>
+                        <div class="flex-1">
+                            <div class="font-semibold text-gray-200">${user.name}</div>
+                            <div class="text-sm text-gray-400">${user.email}</div>
+                        </div>
+                    </div>
+                    <button onclick="toggleFollow('${user.id}', ${user.is_following})" 
+                        class="px-4 py-2 rounded-lg font-medium text-sm transition ${user.is_following ? 'bg-gray-700 text-gray-200 hover:bg-gray-600' : 'bg-accent-blue text-white hover:bg-opacity-90'}">
+                        ${user.is_following ? '팔로잉' : '팔로우'}
+                    </button>
+                </div>
+            `).join('')}
+        `;
+    } catch (error) {
+        hideLoading();
+        console.error('Load following error:', error);
+        showToast('팔로잉 목록을 불러오는데 실패했습니다', 'error');
     }
 }
 

@@ -390,6 +390,21 @@ app.get('/', (c) => {
             opacity: 1;
             border-color: #00d4ff;
         }
+        /* Feed Filter Styles */
+        .feed-filter-btn {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+        .feed-filter-btn:hover {
+            border-color: rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+        }
+        .feed-filter-btn.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(52, 211, 153, 0.2));
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-gray-100">
@@ -495,11 +510,27 @@ app.get('/', (c) => {
 
         <!-- Feed View -->
         <div id="feed-view" class="hidden">
-            <div class="flex justify-between items-center mb-4 md:mb-8">
+            <div class="flex justify-between items-center mb-4 md:mb-6">
                 <h2 class="text-2xl md:text-3xl font-bold gradient-text">활동 피드</h2>
-                <button id="btn-add-workout" class="hidden md:flex btn-primary text-white px-6 py-3 rounded-lg font-semibold items-center space-x-2">
-                    <i class="fas fa-plus"></i>
-                    <span>운동 기록</span>
+                <div class="flex items-center space-x-2">
+                    <button id="btn-search-users" class="p-2 md:px-4 md:py-2 rounded-lg bg-dark-card border border-dark-border hover:border-accent-blue transition text-gray-300 hover:text-accent-blue">
+                        <i class="fas fa-user-plus text-lg md:text-base"></i>
+                        <span class="hidden md:inline ml-2">친구 찾기</span>
+                    </button>
+                    <button id="btn-add-workout" class="hidden md:flex btn-primary text-white px-6 py-3 rounded-lg font-semibold items-center space-x-2">
+                        <i class="fas fa-plus"></i>
+                        <span>운동 기록</span>
+                    </button>
+                </div>
+            </div>
+            
+            <!-- Feed Filter Tabs -->
+            <div class="flex space-x-2 mb-4 overflow-x-auto pb-2">
+                <button data-feed-filter="all" class="feed-filter-btn active px-4 py-2 rounded-lg border transition whitespace-nowrap text-sm">
+                    <i class="fas fa-globe mr-1"></i>모든 활동
+                </button>
+                <button data-feed-filter="following" class="feed-filter-btn px-4 py-2 rounded-lg border transition whitespace-nowrap text-sm">
+                    <i class="fas fa-users mr-1"></i>팔로잉
                 </button>
             </div>
             
@@ -939,6 +970,45 @@ app.get('/', (c) => {
                         취소
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Search Modal -->
+    <div id="user-search-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-dark-card rounded-xl shadow-2xl p-6 md:p-8 max-w-2xl w-full border border-dark-border max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl md:text-2xl font-bold gradient-text">친구 찾기</h3>
+                <button id="close-user-search-modal" class="text-gray-400 hover:text-accent-blue text-3xl transition">&times;</button>
+            </div>
+            
+            <div class="mb-6">
+                <div class="relative">
+                    <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                    <input type="text" id="user-search-input" placeholder="이름 또는 이메일로 검색..." 
+                        class="w-full pl-12 pr-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200 placeholder-gray-500">
+                </div>
+            </div>
+            
+            <div id="user-search-results" class="space-y-3">
+                <div class="text-center text-gray-400 py-8">
+                    <i class="fas fa-users text-4xl mb-3"></i>
+                    <p>이름이나 이메일로 친구를 검색해보세요</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Profile Modal -->
+    <div id="user-profile-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-dark-card rounded-xl shadow-2xl p-6 md:p-8 max-w-2xl w-full border border-dark-border max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl md:text-2xl font-bold gradient-text">프로필</h3>
+                <button id="close-user-profile-modal" class="text-gray-400 hover:text-accent-blue text-3xl transition">&times;</button>
+            </div>
+            
+            <div id="user-profile-content">
+                <!-- Profile content will be populated here -->
             </div>
         </div>
     </div>
