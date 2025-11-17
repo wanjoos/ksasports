@@ -37,16 +37,26 @@ function setupEventListeners() {
     
     // Navigation
     document.addEventListener('click', (e) => {
+        // Desktop nav
         if (e.target.id === 'nav-feed') showView('feed');
         if (e.target.id === 'nav-stats') showView('stats');
         if (e.target.id === 'nav-weight') showView('weight');
         if (e.target.id === 'nav-logout') handleLogout();
+        if (e.target.id === 'nav-edit-profile') showEditProfileModal();
+        
+        // Mobile nav
+        if (e.target.closest('#mobile-nav-feed')) showView('feed');
+        if (e.target.closest('#mobile-nav-stats')) showView('stats');
+        if (e.target.closest('#mobile-nav-weight')) showView('weight');
+        if (e.target.closest('#mobile-nav-add')) showView('add-workout');
+        if (e.target.closest('#mobile-nav-profile')) showEditProfileModal();
+        
+        // Buttons
         if (e.target.id === 'btn-add-workout') showView('add-workout');
         if (e.target.id === 'btn-cancel-workout') showView('feed');
         if (e.target.id === 'btn-add-weight') showAddWeightModal();
         if (e.target.id === 'close-weight-modal') hideAddWeightModal();
         if (e.target.id === 'cancel-weight-modal') hideAddWeightModal();
-        if (e.target.id === 'nav-edit-profile') showEditProfileModal();
         if (e.target.id === 'close-profile-modal') hideEditProfileModal();
         if (e.target.id === 'cancel-profile-modal') hideEditProfileModal();
     });
@@ -172,13 +182,40 @@ function showView(view) {
     // Show selected view
     document.getElementById(`${view}-view`)?.classList.remove('hidden');
     
-    // Update navigation
+    // Update navigation (desktop and mobile)
     updateNavigation();
+    updateMobileNavigation();
+    
+    // Scroll to top
+    window.scrollTo(0, 0);
     
     // Load data for view
     if (view === 'feed') loadFeed();
     if (view === 'stats') loadStats();
     if (view === 'weight') loadWeight();
+}
+
+function updateMobileNavigation() {
+    // Remove active class from all mobile nav items
+    document.querySelectorAll('.mobile-nav-item').forEach(item => {
+        item.classList.remove('active', 'text-accent-blue');
+        item.classList.add('text-gray-400');
+    });
+    
+    // Add active class to current view
+    let activeNavId = null;
+    if (currentView === 'feed') activeNavId = 'mobile-nav-feed';
+    if (currentView === 'stats') activeNavId = 'mobile-nav-stats';
+    if (currentView === 'weight') activeNavId = 'mobile-nav-weight';
+    if (currentView === 'add-workout') activeNavId = 'mobile-nav-add';
+    
+    if (activeNavId) {
+        const activeNav = document.getElementById(activeNavId);
+        if (activeNav) {
+            activeNav.classList.add('active');
+            activeNav.classList.remove('text-gray-400');
+        }
+    }
 }
 
 function updateNavigation() {
@@ -227,27 +264,27 @@ async function loadFeed() {
         }
         
         feedContainer.innerHTML = workouts.map(workout => `
-            <div class="workout-card bg-white rounded-lg shadow-md p-6">
+            <div class="workout-card bg-dark-card rounded-xl shadow-lg p-4 md:p-6 border border-dark-border">
                 <div class="flex items-start justify-between mb-4">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                            <span class="text-blue-600 font-bold">${workout.user.name[0]}</span>
+                    <div class="flex items-center space-x-2 md:space-x-3">
+                        <div class="w-10 h-10 md:w-12 md:h-12 bg-gradient-to-br from-accent-blue to-accent-green rounded-full flex items-center justify-center">
+                            <span class="text-white font-bold text-sm md:text-base">${workout.user.name[0]}</span>
                         </div>
                         <div>
-                            <div class="font-semibold text-gray-800">${workout.user.name}</div>
-                            <div class="text-sm text-gray-500">${formatDate(workout.created_at)}</div>
+                            <div class="font-semibold text-gray-200 text-sm md:text-base">${workout.user.name}</div>
+                            <div class="text-xs md:text-sm text-gray-400">${formatDate(workout.created_at)}</div>
                         </div>
                     </div>
-                    <div class="flex items-center space-x-3">
-                        <div class="text-2xl">${getWorkoutEmoji(workout.workout_type)}</div>
+                    <div class="flex items-center space-x-2 md:space-x-3">
+                        <div class="text-xl md:text-2xl">${getWorkoutEmoji(workout.workout_type)}</div>
                         ${workout.user.id === currentUser.id ? `
                             <div class="relative">
-                                <button onclick="toggleWorkoutMenu('${workout.id}')" class="text-gray-400 hover:text-gray-600">
+                                <button onclick="toggleWorkoutMenu('${workout.id}')" class="text-gray-400 hover:text-accent-blue text-sm md:text-base">
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
-                                <div id="menu-${workout.id}" class="hidden absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg z-10">
-                                    <button onclick="deleteWorkout('${workout.id}')" class="w-full text-left px-4 py-2 text-red-600 hover:bg-gray-100 rounded-lg">
-                                        <i class="fas fa-trash mr-2"></i>삭제
+                                <div id="menu-${workout.id}" class="hidden absolute right-0 mt-2 w-32 md:w-48 bg-dark-bg rounded-lg shadow-xl z-10 border border-dark-border">
+                                    <button onclick="deleteWorkout('${workout.id}')" class="w-full text-left px-3 md:px-4 py-2 text-red-400 hover:bg-dark-card rounded-lg text-sm md:text-base">
+                                        <i class="fas fa-trash mr-1 md:mr-2"></i>삭제
                                     </button>
                                 </div>
                             </div>
@@ -256,29 +293,29 @@ async function loadFeed() {
                 </div>
                 
                 <div class="mb-4">
-                    <div class="text-lg font-semibold text-gray-800 mb-2">${getWorkoutTypeName(workout.workout_type)}</div>
-                    <div class="flex flex-wrap gap-4 text-sm text-gray-600">
-                        ${workout.distance_km ? `<span><i class="fas fa-route mr-1"></i>${workout.distance_km} km</span>` : ''}
-                        <span><i class="fas fa-clock mr-1"></i>${workout.duration_min} 분</span>
-                        ${workout.pace_sec_per_km ? `<span><i class="fas fa-tachometer-alt mr-1"></i>${formatPace(workout.pace_sec_per_km)}</span>` : ''}
-                        ${workout.calories ? `<span><i class="fas fa-fire mr-1"></i>${workout.calories} kcal</span>` : ''}
+                    <div class="text-base md:text-lg font-bold text-accent-blue mb-3">${getWorkoutTypeName(workout.workout_type)}</div>
+                    <div class="grid grid-cols-2 md:flex md:flex-wrap gap-2 md:gap-4 text-xs md:text-sm text-gray-300">
+                        ${workout.distance_km ? `<div class="flex items-center"><i class="fas fa-route mr-1 text-accent-blue"></i>${workout.distance_km} km</div>` : ''}
+                        <div class="flex items-center"><i class="fas fa-clock mr-1 text-accent-green"></i>${workout.duration_min} 분</div>
+                        ${workout.pace_sec_per_km ? `<div class="flex items-center"><i class="fas fa-tachometer-alt mr-1 text-accent-purple"></i>${formatPace(workout.pace_sec_per_km)}</div>` : ''}
+                        ${workout.calories ? `<div class="flex items-center"><i class="fas fa-fire mr-1 text-accent-orange"></i>${workout.calories} kcal</div>` : ''}
                     </div>
-                    ${workout.memo ? `<p class="mt-3 text-gray-700">${workout.memo}</p>` : ''}
+                    ${workout.memo ? `<p class="mt-3 text-gray-300 text-sm md:text-base">${workout.memo}</p>` : ''}
                     ${workout.images && workout.images.length > 0 ? `
                         <div class="mt-3 grid ${workout.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3'} gap-2">
                             ${workout.images.map(img => `
-                                <img src="${img}" alt="운동 이미지" class="rounded-lg object-cover w-full h-48 cursor-pointer" onclick="window.open('${img}', '_blank')">
+                                <img src="${img}" alt="운동 이미지" class="rounded-lg object-cover w-full h-32 md:h-48 cursor-pointer border border-dark-border" onclick="window.open('${img}', '_blank')">
                             `).join('')}
                         </div>
                     ` : ''}
                 </div>
                 
-                <div class="flex items-center space-x-6 pt-4 border-t">
-                    <button onclick="toggleLike('${workout.id}')" class="flex items-center space-x-2 text-gray-600 hover:text-red-500 transition">
-                        <i class="fa${workout.liked_by_me ? 's' : 'r'} fa-heart ${workout.liked_by_me ? 'text-red-500' : ''}"></i>
+                <div class="flex items-center space-x-4 md:space-x-6 pt-3 border-t border-dark-border">
+                    <button onclick="toggleLike('${workout.id}')" class="flex items-center space-x-2 text-gray-400 hover:text-red-400 transition text-sm md:text-base">
+                        <i class="fa${workout.liked_by_me ? 's' : 'r'} fa-heart ${workout.liked_by_me ? 'text-red-400' : ''}"></i>
                         <span id="likes-${workout.id}">${workout.likes_count}</span>
                     </button>
-                    <button class="flex items-center space-x-2 text-gray-600 hover:text-blue-500 transition">
+                    <button class="flex items-center space-x-2 text-gray-400 hover:text-accent-blue transition text-sm md:text-base">
                         <i class="far fa-comment"></i>
                         <span>${workout.comments_count}</span>
                     </button>

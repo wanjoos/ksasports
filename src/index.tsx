@@ -40,7 +40,10 @@ app.get('/', (c) => {
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#0a0e27">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <title>Workout Together - 함께하는 운동 기록</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
@@ -62,26 +65,40 @@ app.get('/', (c) => {
         }
     </script>
     <style>
+        * {
+            -webkit-tap-highlight-color: transparent;
+        }
         body {
             background: linear-gradient(135deg, #0a0e27 0%, #1a1f3a 100%);
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            overflow-x: hidden;
         }
         .workout-card {
             transition: all 0.3s ease;
             background: linear-gradient(135deg, #141b2d 0%, #1f2937 100%);
         }
-        .workout-card:hover {
-            transform: translateY(-4px);
-            box-shadow: 0 8px 24px rgba(0, 212, 255, 0.2);
+        .workout-card:active {
+            transform: scale(0.98);
+        }
+        @media (min-width: 768px) {
+            .workout-card:hover {
+                transform: translateY(-4px);
+                box-shadow: 0 8px 24px rgba(0, 212, 255, 0.2);
+            }
         }
         .stat-card {
             background: linear-gradient(135deg, #141b2d 0%, #1f2937 100%);
             border: 1px solid rgba(0, 212, 255, 0.1);
             transition: all 0.3s ease;
         }
-        .stat-card:hover {
-            border-color: rgba(0, 212, 255, 0.4);
-            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.15);
+        .stat-card:active {
+            transform: scale(0.98);
+        }
+        @media (min-width: 768px) {
+            .stat-card:hover {
+                border-color: rgba(0, 212, 255, 0.4);
+                box-shadow: 0 4px 16px rgba(0, 212, 255, 0.15);
+            }
         }
         .nav-link {
             transition: all 0.2s;
@@ -106,39 +123,113 @@ app.get('/', (c) => {
             background: linear-gradient(135deg, #00d4ff 0%, #0099cc 100%);
             transition: all 0.3s ease;
         }
-        .btn-primary:hover {
-            box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
-            transform: translateY(-2px);
+        .btn-primary:active {
+            transform: scale(0.95);
+        }
+        @media (min-width: 768px) {
+            .btn-primary:hover {
+                box-shadow: 0 4px 16px rgba(0, 212, 255, 0.4);
+                transform: translateY(-2px);
+            }
         }
         input, select, textarea {
             background: #1f2937 !important;
             border-color: #374151 !important;
             color: #e5e7eb !important;
+            font-size: 16px !important; /* Prevent zoom on iOS */
         }
         input:focus, select:focus, textarea:focus {
             border-color: #00d4ff !important;
             box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1) !important;
         }
+        /* Mobile bottom navigation */
+        @media (max-width: 767px) {
+            body {
+                padding-bottom: 80px;
+            }
+            .mobile-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                background: linear-gradient(to top, #141b2d 0%, rgba(20, 27, 45, 0.98) 100%);
+                border-top: 1px solid rgba(0, 212, 255, 0.1);
+                backdrop-blur-lg;
+                z-index: 100;
+                padding: 12px 0 env(safe-area-inset-bottom, 12px) 0;
+            }
+            .mobile-nav-item {
+                flex: 1;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                gap: 4px;
+                padding: 8px;
+                transition: all 0.2s;
+            }
+            .mobile-nav-item.active {
+                color: #00d4ff;
+            }
+            .mobile-nav-item:active {
+                transform: scale(0.9);
+            }
+        }
+        /* Hide desktop nav on mobile */
+        @media (max-width: 767px) {
+            .desktop-nav {
+                display: none !important;
+            }
+        }
+        /* Smooth scrolling */
+        html {
+            scroll-behavior: smooth;
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-gray-100">
-    <!-- Navigation -->
+    <!-- Desktop Navigation -->
     <nav class="bg-dark-card border-b border-dark-border sticky top-0 z-50 backdrop-blur-lg bg-opacity-90">
-        <div class="max-w-6xl mx-auto px-4 py-4">
+        <div class="max-w-6xl mx-auto px-4 py-3 md:py-4">
             <div class="flex justify-between items-center">
-                <div class="flex items-center space-x-3">
-                    <i class="fas fa-running text-accent-blue text-3xl"></i>
-                    <h1 class="text-2xl font-bold gradient-text">WORKOUT TOGETHER</h1>
+                <div class="flex items-center space-x-2 md:space-x-3">
+                    <i class="fas fa-running text-accent-blue text-2xl md:text-3xl"></i>
+                    <h1 class="text-lg md:text-2xl font-bold gradient-text">WORKOUT</h1>
                 </div>
-                <div id="nav-menu" class="flex items-center space-x-6">
-                    <!-- Will be populated by JS -->
+                <div id="nav-menu" class="desktop-nav flex items-center space-x-4 md:space-x-6">
+                    <!-- Will be populated by JS for desktop -->
                 </div>
             </div>
         </div>
     </nav>
 
+    <!-- Mobile Bottom Navigation -->
+    <div class="mobile-nav md:hidden">
+        <div class="flex justify-around items-center">
+            <button id="mobile-nav-feed" class="mobile-nav-item text-gray-400">
+                <i class="fas fa-home text-xl"></i>
+                <span class="text-xs">피드</span>
+            </button>
+            <button id="mobile-nav-add" class="mobile-nav-item text-gray-400">
+                <i class="fas fa-plus-circle text-2xl"></i>
+                <span class="text-xs">기록</span>
+            </button>
+            <button id="mobile-nav-stats" class="mobile-nav-item text-gray-400">
+                <i class="fas fa-chart-bar text-xl"></i>
+                <span class="text-xs">통계</span>
+            </button>
+            <button id="mobile-nav-weight" class="mobile-nav-item text-gray-400">
+                <i class="fas fa-weight text-xl"></i>
+                <span class="text-xs">체중</span>
+            </button>
+            <button id="mobile-nav-profile" class="mobile-nav-item text-gray-400">
+                <i class="fas fa-user text-xl"></i>
+                <span class="text-xs">프로필</span>
+            </button>
+        </div>
+    </div>
+
     <!-- Main Content -->
-    <div class="max-w-6xl mx-auto px-4 py-8">
+    <div class="max-w-6xl mx-auto px-3 md:px-4 py-4 md:py-8">
         <!-- Auth View (Login/Signup) -->
         <div id="auth-view" class="hidden">
             <div class="max-w-md mx-auto">
@@ -193,14 +284,14 @@ app.get('/', (c) => {
 
         <!-- Feed View -->
         <div id="feed-view" class="hidden">
-            <div class="flex justify-between items-center mb-8">
-                <h2 class="text-3xl font-bold gradient-text">활동 피드</h2>
-                <button id="btn-add-workout" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
+            <div class="flex justify-between items-center mb-4 md:mb-8">
+                <h2 class="text-2xl md:text-3xl font-bold gradient-text">활동 피드</h2>
+                <button id="btn-add-workout" class="hidden md:flex btn-primary text-white px-6 py-3 rounded-lg font-semibold items-center space-x-2">
                     <i class="fas fa-plus"></i>
                     <span>운동 기록</span>
                 </button>
             </div>
-            <div id="feed-container" class="space-y-6">
+            <div id="feed-container" class="space-y-4 md:space-y-6">
                 <!-- Feed items will be populated here -->
             </div>
         </div>
@@ -262,48 +353,48 @@ app.get('/', (c) => {
 
         <!-- Stats View -->
         <div id="stats-view" class="hidden">
-            <h2 class="text-3xl font-bold gradient-text mb-8">나의 통계</h2>
+            <h2 class="text-2xl md:text-3xl font-bold gradient-text mb-4 md:mb-8">나의 통계</h2>
             
             <!-- Main Stats Cards -->
-            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                <div class="stat-card rounded-2xl p-8 text-center">
-                    <i class="fas fa-route text-accent-blue text-4xl mb-4"></i>
-                    <div class="text-sm text-gray-400 uppercase tracking-wider mb-2">총 거리</div>
-                    <div class="text-5xl font-bold text-accent-blue mb-1"><span id="stats-distance">0</span></div>
-                    <div class="text-xl text-gray-300">km</div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8">
+                <div class="stat-card rounded-xl md:rounded-2xl p-6 md:p-8 text-center">
+                    <i class="fas fa-route text-accent-blue text-3xl md:text-4xl mb-3 md:mb-4"></i>
+                    <div class="text-xs md:text-sm text-gray-400 uppercase tracking-wider mb-1 md:mb-2">총 거리</div>
+                    <div class="text-4xl md:text-5xl font-bold text-accent-blue mb-1"><span id="stats-distance">0</span></div>
+                    <div class="text-lg md:text-xl text-gray-300">km</div>
                 </div>
-                <div class="stat-card rounded-2xl p-8 text-center">
-                    <i class="fas fa-clock text-accent-green text-4xl mb-4"></i>
-                    <div class="text-sm text-gray-400 uppercase tracking-wider mb-2">총 시간</div>
-                    <div class="text-5xl font-bold text-accent-green mb-1"><span id="stats-duration">0</span></div>
-                    <div class="text-xl text-gray-300">분</div>
+                <div class="stat-card rounded-xl md:rounded-2xl p-6 md:p-8 text-center">
+                    <i class="fas fa-clock text-accent-green text-3xl md:text-4xl mb-3 md:mb-4"></i>
+                    <div class="text-xs md:text-sm text-gray-400 uppercase tracking-wider mb-1 md:mb-2">총 시간</div>
+                    <div class="text-4xl md:text-5xl font-bold text-accent-green mb-1"><span id="stats-duration">0</span></div>
+                    <div class="text-lg md:text-xl text-gray-300">분</div>
                 </div>
-                <div class="stat-card rounded-2xl p-8 text-center">
-                    <i class="fas fa-fire text-accent-orange text-4xl mb-4"></i>
-                    <div class="text-sm text-gray-400 uppercase tracking-wider mb-2">운동 횟수</div>
-                    <div class="text-5xl font-bold text-accent-orange mb-1"><span id="stats-count">0</span></div>
-                    <div class="text-xl text-gray-300">회</div>
+                <div class="stat-card rounded-xl md:rounded-2xl p-6 md:p-8 text-center">
+                    <i class="fas fa-fire text-accent-orange text-3xl md:text-4xl mb-3 md:mb-4"></i>
+                    <div class="text-xs md:text-sm text-gray-400 uppercase tracking-wider mb-1 md:mb-2">운동 횟수</div>
+                    <div class="text-4xl md:text-5xl font-bold text-accent-orange mb-1"><span id="stats-count">0</span></div>
+                    <div class="text-lg md:text-xl text-gray-300">회</div>
                 </div>
             </div>
 
             <!-- Activity By Type -->
-            <div class="bg-dark-card rounded-2xl shadow-2xl p-8 border border-dark-border mb-8">
-                <h3 class="text-2xl font-bold text-gray-200 mb-6 flex items-center">
-                    <i class="fas fa-chart-bar text-accent-blue mr-3"></i>
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
+                <h3 class="text-lg md:text-2xl font-bold text-gray-200 mb-4 md:mb-6 flex items-center">
+                    <i class="fas fa-chart-bar text-accent-blue mr-2 md:mr-3 text-lg md:text-xl"></i>
                     운동 종류별 통계
                 </h3>
-                <div id="stats-by-type" class="space-y-4">
+                <div id="stats-by-type" class="space-y-3 md:space-y-4">
                     <!-- Will be populated by JS -->
                 </div>
             </div>
 
             <!-- Highlights -->
-            <div class="bg-dark-card rounded-2xl shadow-2xl p-8 border border-dark-border">
-                <h3 class="text-2xl font-bold text-gray-200 mb-6 flex items-center">
-                    <i class="fas fa-trophy text-accent-green mr-3"></i>
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border">
+                <h3 class="text-lg md:text-2xl font-bold text-gray-200 mb-4 md:mb-6 flex items-center">
+                    <i class="fas fa-trophy text-accent-green mr-2 md:mr-3 text-lg md:text-xl"></i>
                     개인 기록
                 </h3>
-                <div id="stats-highlights" class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div id="stats-highlights" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
                     <!-- Will be populated by JS -->
                 </div>
             </div>
@@ -311,23 +402,24 @@ app.get('/', (c) => {
 
         <!-- Weight View -->
         <div id="weight-view" class="hidden">
-            <div class="flex justify-between items-center mb-8">
-                <h2 class="text-3xl font-bold gradient-text">체중 관리</h2>
-                <button id="btn-add-weight" class="btn-primary text-white px-6 py-3 rounded-lg font-semibold flex items-center space-x-2">
-                    <i class="fas fa-plus"></i>
-                    <span>체중 추가</span>
+            <div class="flex justify-between items-center mb-4 md:mb-8">
+                <h2 class="text-2xl md:text-3xl font-bold gradient-text">체중 관리</h2>
+                <button id="btn-add-weight" class="btn-primary text-white px-4 md:px-6 py-2 md:py-3 rounded-lg font-semibold flex items-center space-x-2 text-sm md:text-base">
+                    <i class="fas fa-plus text-sm md:text-base"></i>
+                    <span class="hidden md:inline">체중 추가</span>
+                    <span class="md:hidden">추가</span>
                 </button>
             </div>
-            <div class="bg-dark-card rounded-2xl shadow-2xl p-8 border border-dark-border mb-8">
-                <h3 class="text-2xl font-bold text-gray-200 mb-6 flex items-center">
-                    <i class="fas fa-chart-line text-accent-blue mr-3"></i>
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
+                <h3 class="text-lg md:text-2xl font-bold text-gray-200 mb-4 md:mb-6 flex items-center">
+                    <i class="fas fa-chart-line text-accent-blue mr-2 md:mr-3 text-lg md:text-xl"></i>
                     체중 변화 추이
                 </h3>
-                <div id="weight-chart" class="h-64 flex items-center justify-center text-gray-400">
+                <div id="weight-chart" class="h-48 md:h-64 flex items-center justify-center text-gray-400 text-sm md:text-base">
                     체중 기록이 없습니다
                 </div>
             </div>
-            <div id="weight-list" class="space-y-4">
+            <div id="weight-list" class="space-y-3 md:space-y-4">
                 <!-- Will be populated by JS -->
             </div>
         </div>
