@@ -209,6 +209,18 @@ function setupEventListeners() {
         if (e.target.id === 'close-goals-modal') hideSetGoalsModal();
         if (e.target.id === 'cancel-goals-modal') hideSetGoalsModal();
         if (e.target.id === 'save-goals-btn') saveGoals();
+        
+        // Lightbox
+        if (e.target.id === 'lightbox-close') closeLightbox();
+        if (e.target.id === 'lightbox-prev') previousLightboxImage();
+        if (e.target.id === 'lightbox-next') nextLightboxImage();
+        if (e.target.id === 'lightbox-download') downloadLightboxImage();
+        if (e.target.id === 'lightbox-zoom-in') zoomInLightbox();
+        if (e.target.id === 'lightbox-zoom-out') zoomOutLightbox();
+        if (e.target.id === 'lightbox-zoom-reset') resetLightboxZoom();
+        
+        // Close lightbox when clicking background
+        if (e.target.id === 'lightbox-modal') closeLightbox();
     });
     
     // Add workout form
@@ -299,6 +311,32 @@ function setupEventListeners() {
     
     // Clear all filters
     document.getElementById('clear-filters')?.addEventListener('click', clearAllFilters);
+    
+    // Lightbox keyboard navigation
+    document.addEventListener('keydown', handleLightboxKeyboard);
+    
+    // Lightbox image interactions
+    const lightboxImg = document.getElementById('lightbox-image');
+    if (lightboxImg) {
+        // Double click to zoom
+        lightboxImg.addEventListener('dblclick', toggleLightboxZoom);
+        
+        // Mouse pan
+        lightboxImg.addEventListener('mousedown', startLightboxPan);
+        document.addEventListener('mousemove', moveLightboxPan);
+        document.addEventListener('mouseup', endLightboxPan);
+        
+        // Touch pan
+        lightboxImg.addEventListener('touchstart', (e) => {
+            startLightboxPan(e);
+            handleLightboxTouchStart(e);
+        });
+        lightboxImg.addEventListener('touchmove', moveLightboxPan);
+        lightboxImg.addEventListener('touchend', (e) => {
+            endLightboxPan();
+            handleLightboxTouchEnd(e);
+        });
+    }
 }
 
 // Image preview and compression
@@ -714,8 +752,8 @@ function renderFeed(append = false) {
                     ${workout.memo ? `<p class="mt-3 text-gray-300 text-sm md:text-base">${workout.memo}</p>` : ''}
                     ${workout.images && workout.images.length > 0 ? `
                         <div class="mt-3 grid ${workout.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3'} gap-2">
-                            ${workout.images.map(img => `
-                                <img src="${img}" alt="운동 이미지" class="rounded-lg object-cover w-full h-32 md:h-48 cursor-pointer border border-dark-border" onclick="window.open('${img}', '_blank')">
+                            ${workout.images.map((img, idx) => `
+                                <img src="${img}" alt="운동 이미지" class="rounded-lg object-cover w-full h-32 md:h-48 cursor-pointer border border-dark-border" onclick="openLightbox(${JSON.stringify(workout.images)}, ${idx})">
                             `).join('')}
                         </div>
                     ` : ''}
@@ -1696,6 +1734,241 @@ document.addEventListener('click', (e) => {
         });
     }
 });
+
+// Lightbox functions
+let lightboxImages = [];
+let lightboxCurrentIndex = 0;
+let lightboxZoom = 1;
+let lightboxPanX = 0;
+let lightboxPanY = 0;
+let isDragging = false;
+let startX = 0;
+let startY = 0;
+
+function openLightbox(images, startIndex = 0) {
+    lightboxImages = images;
+    lightboxCurrentIndex = startIndex;
+    lightboxZoom = 1;
+    lightboxPanX = 0;
+    lightboxPanY = 0;
+    
+    const modal = document.getElementById('lightbox-modal');
+    modal.classList.remove('hidden');
+    document.body.style.overflow = 'hidden'; // Prevent background scroll
+    
+    updateLightboxImage();
+    renderLightboxThumbnails();
+    updateLightboxNavigation();
+}
+
+function closeLightbox() {
+    const modal = document.getElementById('lightbox-modal');
+    modal.classList.add('hidden');
+    document.body.style.overflow = ''; // Restore scroll
+    lightboxImages = [];
+    lightboxCurrentIndex = 0;
+    resetLightboxZoom();
+}
+
+function updateLightboxImage() {
+    const img = document.getElementById('lightbox-image');
+    const current = document.getElementById('lightbox-current');
+    const total = document.getElementById('lightbox-total');
+    
+    img.src = lightboxImages[lightboxCurrentIndex];
+    current.textContent = lightboxCurrentIndex + 1;
+    total.textContent = lightboxImages.length;
+    
+    // Update active thumbnail
+    document.querySelectorAll('.lightbox-thumbnail').forEach((thumb, idx) => {
+        if (idx === lightboxCurrentIndex) {
+            thumb.classList.add('active');
+        } else {
+            thumb.classList.remove('active');
+        }
+    });
+}
+
+function renderLightboxThumbnails() {
+    const container = document.getElementById('lightbox-thumbnails');
+    
+    if (lightboxImages.length <= 1) {
+        container.classList.add('hidden');
+        return;
+    }
+    
+    container.classList.remove('hidden');
+    container.innerHTML = lightboxImages.map((img, idx) => `
+        <img src="${img}" alt="Thumbnail ${idx + 1}" 
+            class="lightbox-thumbnail ${idx === lightboxCurrentIndex ? 'active' : ''}"
+            onclick="goToLightboxImage(${idx})">
+    `).join('');
+}
+
+function updateLightboxNavigation() {
+    const prevBtn = document.getElementById('lightbox-prev');
+    const nextBtn = document.getElementById('lightbox-next');
+    
+    if (lightboxImages.length <= 1) {
+        prevBtn.classList.add('hidden');
+        nextBtn.classList.add('hidden');
+    } else {
+        prevBtn.classList.remove('hidden');
+        nextBtn.classList.remove('hidden');
+    }
+}
+
+function goToLightboxImage(index) {
+    lightboxCurrentIndex = index;
+    resetLightboxZoom();
+    updateLightboxImage();
+}
+
+function previousLightboxImage() {
+    if (lightboxCurrentIndex > 0) {
+        lightboxCurrentIndex--;
+        resetLightboxZoom();
+        updateLightboxImage();
+    }
+}
+
+function nextLightboxImage() {
+    if (lightboxCurrentIndex < lightboxImages.length - 1) {
+        lightboxCurrentIndex++;
+        resetLightboxZoom();
+        updateLightboxImage();
+    }
+}
+
+function downloadLightboxImage() {
+    const img = lightboxImages[lightboxCurrentIndex];
+    const link = document.createElement('a');
+    link.href = img;
+    link.download = `workout-image-${lightboxCurrentIndex + 1}.jpg`;
+    link.target = '_blank';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    showToast('이미지 다운로드 시작!', 'success');
+}
+
+// Zoom functions
+function zoomInLightbox() {
+    lightboxZoom = Math.min(lightboxZoom + 0.5, 3);
+    applyLightboxZoom();
+}
+
+function zoomOutLightbox() {
+    lightboxZoom = Math.max(lightboxZoom - 0.5, 1);
+    if (lightboxZoom === 1) {
+        resetLightboxZoom();
+    } else {
+        applyLightboxZoom();
+    }
+}
+
+function resetLightboxZoom() {
+    lightboxZoom = 1;
+    lightboxPanX = 0;
+    lightboxPanY = 0;
+    applyLightboxZoom();
+}
+
+function applyLightboxZoom() {
+    const img = document.getElementById('lightbox-image');
+    img.style.transform = `scale(${lightboxZoom}) translate(${lightboxPanX}px, ${lightboxPanY}px)`;
+    
+    if (lightboxZoom > 1) {
+        img.classList.add('zoomed');
+        img.style.cursor = 'move';
+    } else {
+        img.classList.remove('zoomed');
+        img.style.cursor = 'zoom-in';
+    }
+}
+
+// Double click to zoom
+function toggleLightboxZoom() {
+    if (lightboxZoom === 1) {
+        lightboxZoom = 2;
+    } else {
+        lightboxZoom = 1;
+        lightboxPanX = 0;
+        lightboxPanY = 0;
+    }
+    applyLightboxZoom();
+}
+
+// Pan functions
+function startLightboxPan(e) {
+    if (lightboxZoom <= 1) return;
+    
+    isDragging = true;
+    startX = e.clientX || e.touches[0].clientX;
+    startY = e.clientY || e.touches[0].clientY;
+}
+
+function moveLightboxPan(e) {
+    if (!isDragging || lightboxZoom <= 1) return;
+    
+    e.preventDefault();
+    const currentX = e.clientX || e.touches[0].clientX;
+    const currentY = e.clientY || e.touches[0].clientY;
+    
+    const deltaX = currentX - startX;
+    const deltaY = currentY - startY;
+    
+    lightboxPanX += deltaX / lightboxZoom;
+    lightboxPanY += deltaY / lightboxZoom;
+    
+    startX = currentX;
+    startY = currentY;
+    
+    applyLightboxZoom();
+}
+
+function endLightboxPan() {
+    isDragging = false;
+}
+
+// Keyboard navigation
+function handleLightboxKeyboard(e) {
+    if (!document.getElementById('lightbox-modal').classList.contains('hidden')) {
+        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'ArrowLeft') previousLightboxImage();
+        if (e.key === 'ArrowRight') nextLightboxImage();
+        if (e.key === '+' || e.key === '=') zoomInLightbox();
+        if (e.key === '-' || e.key === '_') zoomOutLightbox();
+    }
+}
+
+// Swipe support for mobile
+let touchStartX = 0;
+let touchStartY = 0;
+
+function handleLightboxTouchStart(e) {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+}
+
+function handleLightboxTouchEnd(e) {
+    if (lightboxZoom > 1) return; // Don't swipe when zoomed
+    
+    const touchEndX = e.changedTouches[0].clientX;
+    const touchEndY = e.changedTouches[0].clientY;
+    
+    const diffX = touchStartX - touchEndX;
+    const diffY = touchStartY - touchEndY;
+    
+    // Horizontal swipe
+    if (Math.abs(diffX) > Math.abs(diffY) && Math.abs(diffX) > 50) {
+        if (diffX > 0) {
+            nextLightboxImage();
+        } else {
+            previousLightboxImage();
+        }
+    }
+}
 
 // Goals functions
 async function loadGoalsProgress() {

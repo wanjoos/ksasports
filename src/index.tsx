@@ -341,6 +341,53 @@ app.get('/', (c) => {
             background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
             border-color: rgba(52, 211, 153, 0.3);
         }
+        /* Lightbox Styles */
+        #lightbox-modal {
+            animation: fadeIn 0.3s ease-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #lightbox-image {
+            transition: transform 0.3s ease;
+        }
+        #lightbox-image.zoomed {
+            cursor: zoom-out;
+        }
+        #lightbox-thumbnails {
+            scrollbar-width: thin;
+            scrollbar-color: rgba(0, 212, 255, 0.5) rgba(0, 0, 0, 0.3);
+        }
+        #lightbox-thumbnails::-webkit-scrollbar {
+            height: 6px;
+        }
+        #lightbox-thumbnails::-webkit-scrollbar-track {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 3px;
+        }
+        #lightbox-thumbnails::-webkit-scrollbar-thumb {
+            background: rgba(0, 212, 255, 0.5);
+            border-radius: 3px;
+        }
+        .lightbox-thumbnail {
+            width: 60px;
+            height: 60px;
+            object-fit: cover;
+            border-radius: 6px;
+            cursor: pointer;
+            opacity: 0.5;
+            transition: all 0.2s;
+            border: 2px solid transparent;
+        }
+        .lightbox-thumbnail:hover {
+            opacity: 0.8;
+            transform: scale(1.05);
+        }
+        .lightbox-thumbnail.active {
+            opacity: 1;
+            border-color: #00d4ff;
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-gray-100">
@@ -891,6 +938,57 @@ app.get('/', (c) => {
                     </button>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Image Lightbox Modal -->
+    <div id="lightbox-modal" class="hidden fixed inset-0 bg-black bg-opacity-95 z-[60] flex items-center justify-center">
+        <!-- Close Button -->
+        <button id="lightbox-close" class="absolute top-4 right-4 text-white text-4xl hover:text-accent-blue transition z-10 w-12 h-12 flex items-center justify-center">
+            <i class="fas fa-times"></i>
+        </button>
+        
+        <!-- Download Button -->
+        <button id="lightbox-download" class="absolute top-4 right-20 text-white text-2xl hover:text-accent-blue transition z-10 w-12 h-12 flex items-center justify-center">
+            <i class="fas fa-download"></i>
+        </button>
+        
+        <!-- Previous Button -->
+        <button id="lightbox-prev" class="absolute left-4 top-1/2 transform -translate-y-1/2 text-white text-4xl hover:text-accent-blue transition z-10 w-12 h-12 flex items-center justify-center">
+            <i class="fas fa-chevron-left"></i>
+        </button>
+        
+        <!-- Next Button -->
+        <button id="lightbox-next" class="absolute right-4 top-1/2 transform -translate-y-1/2 text-white text-4xl hover:text-accent-blue transition z-10 w-12 h-12 flex items-center justify-center">
+            <i class="fas fa-chevron-right"></i>
+        </button>
+        
+        <!-- Main Image Container -->
+        <div id="lightbox-image-container" class="relative w-full h-full flex items-center justify-center p-4 md:p-20">
+            <img id="lightbox-image" src="" alt="" class="max-w-full max-h-full object-contain rounded-lg shadow-2xl cursor-zoom-in">
+        </div>
+        
+        <!-- Image Counter -->
+        <div id="lightbox-counter" class="absolute top-4 left-1/2 transform -translate-x-1/2 text-white bg-black bg-opacity-50 px-4 py-2 rounded-full text-sm">
+            <span id="lightbox-current">1</span> / <span id="lightbox-total">1</span>
+        </div>
+        
+        <!-- Thumbnails Bar -->
+        <div id="lightbox-thumbnails" class="absolute bottom-4 left-1/2 transform -translate-x-1/2 flex space-x-2 bg-black bg-opacity-50 p-3 rounded-lg max-w-[90vw] overflow-x-auto">
+            <!-- Thumbnails will be populated here -->
+        </div>
+        
+        <!-- Zoom Controls (for desktop) -->
+        <div class="hidden md:flex absolute bottom-4 right-4 space-x-2">
+            <button id="lightbox-zoom-in" class="bg-black bg-opacity-50 text-white w-10 h-10 rounded-full hover:bg-opacity-70 transition">
+                <i class="fas fa-search-plus"></i>
+            </button>
+            <button id="lightbox-zoom-out" class="bg-black bg-opacity-50 text-white w-10 h-10 rounded-full hover:bg-opacity-70 transition">
+                <i class="fas fa-search-minus"></i>
+            </button>
+            <button id="lightbox-zoom-reset" class="bg-black bg-opacity-50 text-white w-10 h-10 rounded-full hover:bg-opacity-70 transition">
+                <i class="fas fa-compress"></i>
+            </button>
         </div>
     </div>
 
