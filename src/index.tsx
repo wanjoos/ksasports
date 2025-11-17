@@ -11,6 +11,7 @@ import weight from './routes/weight';
 import upload from './routes/upload';
 import profile from './routes/profile';
 import goals from './routes/goals';
+import social from './routes/social';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -27,6 +28,7 @@ app.route('/api/me/stats', stats);
 app.route('/api/me/weights', weight);
 app.route('/api/me/profile', profile);
 app.route('/api/me/goals', goals);
+app.route('/api/social', social);
 app.route('/api/upload', upload);
 
 // Serve images from R2
