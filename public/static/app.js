@@ -203,6 +203,12 @@ function setupEventListeners() {
         if (e.target.id === 'cancel-weight-modal') hideAddWeightModal();
         if (e.target.id === 'close-profile-modal') hideEditProfileModal();
         if (e.target.id === 'cancel-profile-modal') hideEditProfileModal();
+        
+        // Goals modal
+        if (e.target.id === 'btn-set-goals') showSetGoalsModal();
+        if (e.target.id === 'close-goals-modal') hideSetGoalsModal();
+        if (e.target.id === 'cancel-goals-modal') hideSetGoalsModal();
+        if (e.target.id === 'save-goals-btn') saveGoals();
     });
     
     // Add workout form
@@ -1047,9 +1053,10 @@ let workoutTypeChart = null;
 
 async function loadStats() {
     try {
-        const [statsRes, highlightsRes] = await Promise.all([
+        const [statsRes, highlightsRes, goalsRes] = await Promise.all([
             axios.get(`${API_BASE}/me/stats?range=weekly`),
-            axios.get(`${API_BASE}/me/stats/highlights`)
+            axios.get(`${API_BASE}/me/stats/highlights`),
+            loadGoalsProgress()
         ]);
         
         const stats = statsRes.data;
@@ -1689,6 +1696,241 @@ document.addEventListener('click', (e) => {
         });
     }
 });
+
+// Goals functions
+async function loadGoalsProgress() {
+    try {
+        const response = await axios.get(`${API_BASE}/me/goals/progress`);
+        const goals = response.data;
+        
+        const goalsProgress = document.getElementById('goals-progress');
+        const goalsEmpty = document.getElementById('goals-empty');
+        
+        if (goals.length === 0) {
+            goalsProgress.innerHTML = '';
+            goalsEmpty.classList.remove('hidden');
+            return;
+        }
+        
+        goalsEmpty.classList.add('hidden');
+        
+        // Group by goal type
+        const weekly = goals.filter(g => g.goal_type === 'WEEKLY');
+        const monthly = goals.filter(g => g.goal_type === 'MONTHLY');
+        
+        let html = '';
+        
+        if (weekly.length > 0) {
+            html += `
+                <div class="mb-6">
+                    <h4 class="text-md font-bold text-accent-blue mb-3 flex items-center">
+                        <i class="fas fa-calendar-week mr-2"></i>
+                        이번 주 목표
+                    </h4>
+                    <div class="space-y-3">
+                        ${weekly.map(goal => renderGoalProgress(goal)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        if (monthly.length > 0) {
+            html += `
+                <div>
+                    <h4 class="text-md font-bold text-accent-green mb-3 flex items-center">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        이번 달 목표
+                    </h4>
+                    <div class="space-y-3">
+                        ${monthly.map(goal => renderGoalProgress(goal)).join('')}
+                    </div>
+                </div>
+            `;
+        }
+        
+        goalsProgress.innerHTML = html;
+        
+        // Check for achievements
+        goals.forEach(goal => {
+            if (goal.is_achieved && !localStorage.getItem(`goal-achieved-${goal.id}`)) {
+                showToast(`🎉 목표 달성! ${getGoalTypeName(goal.target_type)} ${goal.target_value}${getGoalUnit(goal.target_type)} 완료!`, 'success');
+                localStorage.setItem(`goal-achieved-${goal.id}`, 'true');
+            }
+        });
+    } catch (error) {
+        console.error('Failed to load goals:', error);
+    }
+}
+
+function renderGoalProgress(goal) {
+    const targetName = getGoalTypeName(goal.target_type);
+    const unit = getGoalUnit(goal.target_type);
+    const percentage = goal.percentage;
+    const isAchieved = goal.is_achieved;
+    
+    let progressColor = 'from-accent-blue to-cyan-500';
+    if (percentage >= 80) progressColor = 'from-accent-green to-emerald-500';
+    else if (percentage >= 50) progressColor = 'from-accent-blue to-cyan-500';
+    else progressColor = 'from-gray-500 to-gray-600';
+    
+    return `
+        <div class="goal-card ${isAchieved ? 'achieved' : ''} rounded-lg p-4">
+            <div class="flex justify-between items-start mb-3">
+                <div class="flex items-center space-x-2">
+                    <span class="text-lg">${getGoalIcon(goal.target_type)}</span>
+                    <span class="font-semibold text-gray-200">${targetName}</span>
+                    ${isAchieved ? '<span class="text-xs bg-accent-green text-white px-2 py-1 rounded-full">달성!</span>' : ''}
+                </div>
+                <button onclick="deleteGoal('${goal.id}')" class="text-gray-400 hover:text-red-400 transition text-sm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            <div class="mb-2">
+                <div class="flex justify-between text-sm mb-1">
+                    <span class="text-gray-400">${goal.current_value.toFixed(goal.target_type === 'COUNT' ? 0 : 1)}${unit} / ${goal.target_value}${unit}</span>
+                    <span class="font-bold ${isAchieved ? 'text-accent-green' : 'text-accent-blue'}">${percentage}%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-bar-fill bg-gradient-to-r ${progressColor}" style="width: ${Math.min(percentage, 100)}%"></div>
+                </div>
+            </div>
+            ${!isAchieved && percentage >= 80 ? '<p class="text-xs text-accent-green">조금만 더! 거의 다 왔어요! 💪</p>' : ''}
+            ${!isAchieved && percentage < 50 ? '<p class="text-xs text-gray-400">화이팅! 꾸준히 해봐요! 🔥</p>' : ''}
+        </div>
+    `;
+}
+
+function getGoalTypeName(type) {
+    const names = {
+        'COUNT': '운동 횟수',
+        'DISTANCE': '총 거리',
+        'DURATION': '총 시간'
+    };
+    return names[type] || type;
+}
+
+function getGoalUnit(type) {
+    const units = {
+        'COUNT': '회',
+        'DISTANCE': 'km',
+        'DURATION': '분'
+    };
+    return units[type] || '';
+}
+
+function getGoalIcon(type) {
+    const icons = {
+        'COUNT': '🔢',
+        'DISTANCE': '🏃',
+        'DURATION': '⏱️'
+    };
+    return icons[type] || '🎯';
+}
+
+function showSetGoalsModal() {
+    document.getElementById('set-goals-modal').classList.remove('hidden');
+    loadCurrentGoals();
+}
+
+function hideSetGoalsModal() {
+    document.getElementById('set-goals-modal').classList.add('hidden');
+}
+
+async function loadCurrentGoals() {
+    try {
+        const response = await axios.get(`${API_BASE}/me/goals/progress`);
+        const goals = response.data;
+        
+        // Clear all inputs first
+        ['weekly', 'monthly'].forEach(period => {
+            ['count', 'distance', 'duration'].forEach(type => {
+                document.getElementById(`${period}-${type}`).value = '';
+            });
+        });
+        
+        // Populate with existing goals
+        goals.forEach(goal => {
+            const period = goal.goal_type.toLowerCase();
+            const type = goal.target_type.toLowerCase();
+            const input = document.getElementById(`${period}-${type}`);
+            if (input) {
+                input.value = goal.target_value;
+            }
+        });
+    } catch (error) {
+        console.error('Failed to load current goals:', error);
+    }
+}
+
+async function saveGoals() {
+    try {
+        showLoading();
+        
+        const goalsToSave = [];
+        
+        // Collect weekly goals
+        ['count', 'distance', 'duration'].forEach(type => {
+            const value = parseFloat(document.getElementById(`weekly-${type}`).value);
+            if (value && value > 0) {
+                goalsToSave.push({
+                    goal_type: 'WEEKLY',
+                    target_type: type.toUpperCase(),
+                    target_value: value
+                });
+            }
+        });
+        
+        // Collect monthly goals
+        ['count', 'distance', 'duration'].forEach(type => {
+            const value = parseFloat(document.getElementById(`monthly-${type}`).value);
+            if (value && value > 0) {
+                goalsToSave.push({
+                    goal_type: 'MONTHLY',
+                    target_type: type.toUpperCase(),
+                    target_value: value
+                });
+            }
+        });
+        
+        if (goalsToSave.length === 0) {
+            hideLoading();
+            showToast('최소 하나의 목표를 설정해주세요', 'warning');
+            return;
+        }
+        
+        // Save all goals
+        await Promise.all(
+            goalsToSave.map(goal => axios.post(`${API_BASE}/me/goals`, goal))
+        );
+        
+        hideLoading();
+        hideSetGoalsModal();
+        showToast('목표가 설정되었습니다! 🎯', 'success');
+        
+        // Reload goals
+        await loadGoalsProgress();
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to save goals:', error);
+        showToast('목표 설정에 실패했습니다', 'error');
+    }
+}
+
+async function deleteGoal(goalId) {
+    if (!confirm('이 목표를 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        await axios.delete(`${API_BASE}/me/goals/${goalId}`);
+        showToast('목표가 삭제되었습니다', 'success');
+        localStorage.removeItem(`goal-achieved-${goalId}`);
+        await loadGoalsProgress();
+    } catch (error) {
+        console.error('Failed to delete goal:', error);
+        showToast('목표 삭제에 실패했습니다', 'error');
+    }
+}
 
 // Profile functions
 function showEditProfileModal() {

@@ -10,6 +10,7 @@ import stats from './routes/stats';
 import weight from './routes/weight';
 import upload from './routes/upload';
 import profile from './routes/profile';
+import goals from './routes/goals';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -25,6 +26,7 @@ app.route('/api/workouts', workouts);
 app.route('/api/me/stats', stats);
 app.route('/api/me/weights', weight);
 app.route('/api/me/profile', profile);
+app.route('/api/me/goals', goals);
 app.route('/api/upload', upload);
 
 // Serve images from R2
@@ -290,6 +292,54 @@ app.get('/', (c) => {
         }
         .filter-tag button:hover {
             opacity: 1;
+        }
+        /* Progress Bar Styles */
+        .progress-bar {
+            width: 100%;
+            height: 12px;
+            background: rgba(31, 41, 55, 0.8);
+            border-radius: 999px;
+            overflow: hidden;
+            position: relative;
+        }
+        .progress-bar-fill {
+            height: 100%;
+            transition: width 0.6s ease-out;
+            border-radius: 999px;
+            position: relative;
+            overflow: hidden;
+        }
+        .progress-bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: linear-gradient(
+                90deg,
+                transparent,
+                rgba(255, 255, 255, 0.2),
+                transparent
+            );
+            animation: shimmer 2s infinite;
+        }
+        @keyframes shimmer {
+            0% { transform: translateX(-100%); }
+            100% { transform: translateX(100%); }
+        }
+        .goal-card {
+            background: linear-gradient(135deg, rgba(20, 27, 45, 0.8) 0%, rgba(31, 41, 55, 0.6) 100%);
+            border: 1px solid rgba(0, 212, 255, 0.2);
+            transition: all 0.3s;
+        }
+        .goal-card:hover {
+            border-color: rgba(0, 212, 255, 0.4);
+            transform: translateY(-2px);
+        }
+        .goal-card.achieved {
+            background: linear-gradient(135deg, rgba(52, 211, 153, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%);
+            border-color: rgba(52, 211, 153, 0.3);
         }
     </style>
 </head>
@@ -635,6 +685,31 @@ app.get('/', (c) => {
         <div id="stats-view" class="hidden">
             <h2 class="text-2xl md:text-3xl font-bold gradient-text mb-4 md:mb-8">나의 통계</h2>
             
+            <!-- Goals Section -->
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
+                <div class="flex justify-between items-center mb-4 md:mb-6">
+                    <h3 class="text-lg md:text-2xl font-bold text-gray-200 flex items-center">
+                        <i class="fas fa-bullseye text-accent-green mr-2 md:mr-3 text-lg md:text-xl"></i>
+                        운동 목표
+                    </h3>
+                    <button id="btn-set-goals" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2">
+                        <i class="fas fa-edit"></i>
+                        <span>목표 설정</span>
+                    </button>
+                </div>
+                
+                <!-- Goals Progress -->
+                <div id="goals-progress" class="space-y-4">
+                    <!-- Will be populated by JS -->
+                </div>
+                
+                <div id="goals-empty" class="text-center py-8 text-gray-400">
+                    <i class="fas fa-target text-4xl mb-3"></i>
+                    <p>아직 설정된 목표가 없습니다.</p>
+                    <p class="text-sm mt-2">목표를 설정하고 달성해보세요! 🎯</p>
+                </div>
+            </div>
+            
             <!-- Main Stats Cards -->
             <div class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6 mb-4 md:mb-8">
                 <div class="stat-card rounded-xl md:rounded-2xl p-6 md:p-8 text-center">
@@ -745,6 +820,77 @@ app.get('/', (c) => {
                     <button type="button" id="cancel-weight-modal" class="flex-1 bg-gray-700 text-gray-200 py-3 rounded-lg hover:bg-gray-600 transition font-semibold">취소</button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Set Goals Modal -->
+    <div id="set-goals-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-dark-card rounded-xl shadow-2xl p-6 md:p-8 max-w-2xl w-full border border-dark-border max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl md:text-2xl font-bold gradient-text">목표 설정</h3>
+                <button id="close-goals-modal" class="text-gray-400 hover:text-accent-blue text-3xl transition">&times;</button>
+            </div>
+            
+            <div class="space-y-6">
+                <!-- Weekly Goals -->
+                <div class="border border-dark-border rounded-lg p-4 md:p-6">
+                    <h4 class="text-lg font-bold text-accent-blue mb-4 flex items-center">
+                        <i class="fas fa-calendar-week mr-2"></i>
+                        주간 목표
+                    </h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">운동 횟수 (회)</label>
+                            <input type="number" id="weekly-count" min="0" step="1" placeholder="예: 5회" 
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">총 거리 (km)</label>
+                            <input type="number" id="weekly-distance" min="0" step="0.1" placeholder="예: 20km" 
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">총 시간 (분)</label>
+                            <input type="number" id="weekly-duration" min="0" step="1" placeholder="예: 300분" 
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Monthly Goals -->
+                <div class="border border-dark-border rounded-lg p-4 md:p-6">
+                    <h4 class="text-lg font-bold text-accent-green mb-4 flex items-center">
+                        <i class="fas fa-calendar-alt mr-2"></i>
+                        월간 목표
+                    </h4>
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">운동 횟수 (회)</label>
+                            <input type="number" id="monthly-count" min="0" step="1" placeholder="예: 20회" 
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">총 거리 (km)</label>
+                            <input type="number" id="monthly-distance" min="0" step="0.1" placeholder="예: 100km" 
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">총 시간 (분)</label>
+                            <input type="number" id="monthly-duration" min="0" step="1" placeholder="예: 1200분" 
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="flex space-x-4 pt-4">
+                    <button id="save-goals-btn" class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold">
+                        <i class="fas fa-save mr-2"></i>저장
+                    </button>
+                    <button id="cancel-goals-modal" class="flex-1 bg-gray-700 text-gray-200 py-3 rounded-lg hover:bg-gray-600 transition font-semibold">
+                        취소
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
