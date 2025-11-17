@@ -941,6 +941,113 @@ app.get('/', (c) => {
         </div>
     </div>
 
+    <!-- Edit Workout Modal -->
+    <div id="edit-workout-modal" class="hidden fixed inset-0 bg-black bg-opacity-70 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+        <div class="bg-dark-card rounded-xl shadow-2xl p-6 md:p-8 max-w-2xl w-full border border-dark-border max-h-[90vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl md:text-2xl font-bold gradient-text">운동 수정</h3>
+                <button id="close-edit-workout-modal" class="text-gray-400 hover:text-accent-blue text-3xl transition">&times;</button>
+            </div>
+            
+            <form id="edit-workout-form" class="space-y-5">
+                <input type="hidden" id="edit-workout-id">
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">운동 종류</label>
+                    <select id="edit-workout-type" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue" required>
+                        <optgroup label="🏃 야외 유산소">
+                            <option value="RUN">🏃 러닝</option>
+                            <option value="WALK">🚶 걷기</option>
+                            <option value="BIKE">🚴 사이클</option>
+                            <option value="HIKING">🥾 등산</option>
+                            <option value="SWIMMING">🏊 수영</option>
+                        </optgroup>
+                        <optgroup label="🏠 실내 유산소">
+                            <option value="TREADMILL">🏃‍♂️ 러닝머신</option>
+                            <option value="INDOOR_BIKE">🚴‍♀️ 실내사이클</option>
+                            <option value="STEPPER">🪜 스텝퍼</option>
+                            <option value="ELLIPTICAL">⚙️ 일립티컬</option>
+                            <option value="ROWING">🚣 로잉머신</option>
+                            <option value="JUMP_ROPE">🪢 줄넘기</option>
+                        </optgroup>
+                        <optgroup label="💪 근력 운동">
+                            <option value="WEIGHT">🏋️ 웨이트</option>
+                            <option value="HOME_TRAINING">💪 홈트레이닝</option>
+                            <option value="CROSSFIT">🤸 크로스핏</option>
+                            <option value="CALISTHENICS">🤸‍♂️ 맨몸운동</option>
+                        </optgroup>
+                        <optgroup label="🏐 구기 종목">
+                            <option value="BADMINTON">🏸 배드민턴</option>
+                            <option value="TENNIS">🎾 테니스</option>
+                            <option value="TABLE_TENNIS">🏓 탁구</option>
+                            <option value="BASKETBALL">🏀 농구</option>
+                            <option value="SOCCER">⚽ 축구</option>
+                            <option value="VOLLEYBALL">🏐 배구</option>
+                            <option value="GOLF">⛳ 골프</option>
+                        </optgroup>
+                        <optgroup label="🥋 격투기">
+                            <option value="BOXING">🥊 복싱</option>
+                            <option value="TAEKWONDO">🥋 태권도</option>
+                            <option value="JUDO">🥋 유도</option>
+                        </optgroup>
+                        <optgroup label="🧘 기타 스포츠">
+                            <option value="YOGA">🧘 요가</option>
+                            <option value="PILATES">🧘‍♀️ 필라테스</option>
+                            <option value="CLIMBING">🧗 클라이밍</option>
+                            <option value="SKIING">⛷️ 스키</option>
+                            <option value="SKATEBOARD">🛹 스케이트보드</option>
+                            <option value="DANCE">💃 댄스</option>
+                        </optgroup>
+                        <optgroup label="⚡ 기타">
+                            <option value="OTHER">⚡ 기타</option>
+                        </optgroup>
+                    </select>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">시작 시간</label>
+                    <input type="datetime-local" id="edit-workout-started" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue" required>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">거리 (km, 선택)</label>
+                        <input type="number" step="0.1" id="edit-workout-distance" placeholder="예: 5.2" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">시간 (분)</label>
+                        <input type="number" id="edit-workout-duration" placeholder="예: 30" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue" required>
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">페이스 (초/km, 선택)</label>
+                        <input type="number" id="edit-workout-pace" placeholder="예: 330 (5분30초/km)" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">칼로리 (kcal, 선택)</label>
+                        <input type="number" id="edit-workout-calories" placeholder="예: 300" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue">
+                    </div>
+                </div>
+                
+                <div>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">메모 (선택)</label>
+                    <textarea id="edit-workout-memo" rows="3" placeholder="오늘 운동은 어땠나요?" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue resize-none"></textarea>
+                </div>
+                
+                <div class="flex space-x-4 pt-4">
+                    <button type="submit" class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold">
+                        <i class="fas fa-save mr-2"></i>저장
+                    </button>
+                    <button type="button" id="cancel-edit-workout-modal" class="flex-1 bg-gray-700 text-gray-200 py-3 rounded-lg hover:bg-gray-600 transition font-semibold">
+                        취소
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
     <!-- Image Lightbox Modal -->
     <div id="lightbox-modal" class="hidden fixed inset-0 bg-black bg-opacity-95 z-[60] flex items-center justify-center">
         <!-- Close Button -->

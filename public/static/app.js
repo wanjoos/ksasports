@@ -221,10 +221,17 @@ function setupEventListeners() {
         
         // Close lightbox when clicking background
         if (e.target.id === 'lightbox-modal') closeLightbox();
+        
+        // Edit workout modal
+        if (e.target.id === 'close-edit-workout-modal') hideEditWorkoutModal();
+        if (e.target.id === 'cancel-edit-workout-modal') hideEditWorkoutModal();
     });
     
     // Add workout form
     document.getElementById('add-workout-form')?.addEventListener('submit', handleAddWorkout);
+    
+    // Edit workout form
+    document.getElementById('edit-workout-form')?.addEventListener('submit', handleEditWorkout);
     
     // Add weight form
     document.getElementById('add-weight-form')?.addEventListener('submit', handleAddWeight);
@@ -732,7 +739,10 @@ function renderFeed(append = false) {
                                     <i class="fas fa-ellipsis-v"></i>
                                 </button>
                                 <div id="menu-${workout.id}" class="hidden absolute right-0 mt-2 w-32 md:w-48 bg-dark-bg rounded-lg shadow-xl z-10 border border-dark-border">
-                                    <button onclick="deleteWorkout('${workout.id}')" class="w-full text-left px-3 md:px-4 py-2 text-red-400 hover:bg-dark-card rounded-lg text-sm md:text-base">
+                                    <button onclick="editWorkout('${workout.id}')" class="w-full text-left px-3 md:px-4 py-2 text-accent-blue hover:bg-dark-card rounded-t-lg text-sm md:text-base">
+                                        <i class="fas fa-edit mr-1 md:mr-2"></i>수정
+                                    </button>
+                                    <button onclick="deleteWorkout('${workout.id}')" class="w-full text-left px-3 md:px-4 py-2 text-red-400 hover:bg-dark-card rounded-b-lg text-sm md:text-base">
                                         <i class="fas fa-trash mr-1 md:mr-2"></i>삭제
                                     </button>
                                 </div>
@@ -1708,6 +1718,75 @@ function initializeWorkoutTypeFilters() {
     const allButton = container.querySelector('[data-type="all"]');
     if (allButton) {
         container.innerHTML = allButton.outerHTML + buttons;
+    }
+}
+
+// Edit workout functions
+async function editWorkout(workoutId) {
+    try {
+        // Find the workout from allWorkouts
+        const workout = allWorkouts.find(w => w.id === workoutId);
+        if (!workout) {
+            showToast('운동 기록을 찾을 수 없습니다', 'error');
+            return;
+        }
+        
+        // Populate form
+        document.getElementById('edit-workout-id').value = workout.id;
+        document.getElementById('edit-workout-type').value = workout.workout_type;
+        
+        // Format datetime for input
+        const startedDate = new Date(workout.started_at);
+        startedDate.setMinutes(startedDate.getMinutes() - startedDate.getTimezoneOffset());
+        document.getElementById('edit-workout-started').value = startedDate.toISOString().slice(0, 16);
+        
+        document.getElementById('edit-workout-distance').value = workout.distance_km || '';
+        document.getElementById('edit-workout-duration').value = workout.duration_min;
+        document.getElementById('edit-workout-pace').value = workout.pace_sec_per_km || '';
+        document.getElementById('edit-workout-calories').value = workout.calories || '';
+        document.getElementById('edit-workout-memo').value = workout.memo || '';
+        
+        // Show modal
+        document.getElementById('edit-workout-modal').classList.remove('hidden');
+    } catch (error) {
+        console.error('Failed to load workout:', error);
+        showToast('운동 기록을 불러오는데 실패했습니다', 'error');
+    }
+}
+
+function hideEditWorkoutModal() {
+    document.getElementById('edit-workout-modal').classList.add('hidden');
+}
+
+async function handleEditWorkout(e) {
+    e.preventDefault();
+    
+    try {
+        showLoading();
+        
+        const workoutId = document.getElementById('edit-workout-id').value;
+        const workoutData = {
+            workout_type: document.getElementById('edit-workout-type').value,
+            started_at: new Date(document.getElementById('edit-workout-started').value).toISOString(),
+            duration_min: parseInt(document.getElementById('edit-workout-duration').value),
+            distance_km: parseFloat(document.getElementById('edit-workout-distance').value) || null,
+            pace_sec_per_km: parseInt(document.getElementById('edit-workout-pace').value) || null,
+            calories: parseInt(document.getElementById('edit-workout-calories').value) || null,
+            memo: document.getElementById('edit-workout-memo').value || null
+        };
+        
+        await axios.put(`${API_BASE}/workouts/${workoutId}`, workoutData);
+        
+        hideLoading();
+        hideEditWorkoutModal();
+        showToast('운동 기록이 수정되었습니다! 💪', 'success');
+        
+        // Reload feed
+        await loadFeed();
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to update workout:', error);
+        showToast('운동 기록 수정에 실패했습니다', 'error');
     }
 }
 
