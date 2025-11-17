@@ -1,6 +1,7 @@
 import { Hono } from 'hono';
 import { generateId } from '../utils/crypto';
 import { authMiddleware } from '../utils/middleware';
+import { createNotification } from './notifications';
 import type { Bindings, Workout, WorkoutWithUser, Comment, CommentWithUser, User } from '../types';
 
 const workouts = new Hono<{ Bindings: Bindings }>();
@@ -230,6 +231,21 @@ workouts.post('/:id/like', authMiddleware, async (c) => {
       'INSERT INTO likes (id, workout_id, user_id) VALUES (?, ?, ?)'
     ).bind(likeId, workoutId, userId).run();
     
+    // Get workout owner to create notification
+    const workout = await db.prepare(
+      'SELECT user_id FROM workouts WHERE id = ?'
+    ).bind(workoutId).first<{ user_id: string }>();
+    
+    // Create notification if not liking own workout
+    if (workout && workout.user_id !== userId) {
+      await createNotification(db, {
+        user_id: workout.user_id,
+        type: 'LIKE',
+        actor_id: userId,
+        workout_id: workoutId
+      });
+    }
+    
     const likesCount = await db.prepare(
       'SELECT COUNT(*) as count FROM likes WHERE workout_id = ?'
     ).bind(workoutId).first<{ count: number }>();
@@ -317,6 +333,22 @@ workouts.post('/:id/comments', authMiddleware, async (c) => {
     await db.prepare(
       'INSERT INTO comments (id, workout_id, user_id, text) VALUES (?, ?, ?, ?)'
     ).bind(commentId, workoutId, userId, text).run();
+    
+    // Get workout owner to create notification
+    const workout = await db.prepare(
+      'SELECT user_id FROM workouts WHERE id = ?'
+    ).bind(workoutId).first<{ user_id: string }>();
+    
+    // Create notification if not commenting on own workout
+    if (workout && workout.user_id !== userId) {
+      await createNotification(db, {
+        user_id: workout.user_id,
+        type: 'COMMENT',
+        actor_id: userId,
+        workout_id: workoutId,
+        comment_text: text.substring(0, 100) // Limit to 100 chars
+      });
+    }
     
     const comment = await db.prepare(
       `SELECT c.*, u.id as user_id, u.name as user_name, u.email as user_email,

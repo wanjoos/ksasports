@@ -13,6 +13,7 @@ import profile from './routes/profile';
 import goals from './routes/goals';
 import social from './routes/social';
 import challenges from './routes/challenges';
+import notifications from './routes/notifications';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -31,6 +32,7 @@ app.route('/api/me/profile', profile);
 app.route('/api/me/goals', goals);
 app.route('/api/social', social);
 app.route('/api/challenges', challenges);
+app.route('/api/notifications', notifications);
 app.route('/api/upload', upload);
 
 // Serve images from R2
@@ -422,6 +424,25 @@ app.get('/', (c) => {
                     <button id="theme-toggle" class="p-2 rounded-lg hover:bg-dark-border transition">
                         <i id="theme-icon" class="fas fa-sun text-xl text-gray-300"></i>
                     </button>
+                    <!-- Notifications -->
+                    <div class="relative hidden" id="notifications-container">
+                        <button onclick="toggleNotificationsDropdown()" class="p-2 rounded-lg hover:bg-dark-border transition relative">
+                            <i class="fas fa-bell text-xl text-gray-300"></i>
+                            <span id="notification-badge" class="hidden absolute -top-1 -right-1 bg-red-500 text-white text-xs font-bold rounded-full w-5 h-5 flex items-center justify-center">0</span>
+                        </button>
+                        <!-- Notifications Dropdown -->
+                        <div id="notifications-dropdown" class="hidden absolute right-0 mt-2 w-80 md:w-96 bg-dark-card rounded-xl shadow-2xl border border-dark-border z-50 max-h-[500px] overflow-y-auto">
+                            <div class="sticky top-0 bg-dark-card border-b border-dark-border px-4 py-3 flex justify-between items-center">
+                                <h3 class="font-bold text-gray-200">알림</h3>
+                                <button onclick="markAllNotificationsAsRead()" class="text-sm text-accent-blue hover:text-accent-green transition">
+                                    모두 읽음
+                                </button>
+                            </div>
+                            <div id="notifications-dropdown-list">
+                                <!-- Will be populated by JS -->
+                            </div>
+                        </div>
+                    </div>
                     <div id="nav-menu" class="desktop-nav flex items-center space-x-4 md:space-x-6">
                         <!-- Will be populated by JS for desktop -->
                     </div>

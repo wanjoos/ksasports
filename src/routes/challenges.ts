@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { verify } from 'hono/jwt';
+import { createNotification } from './notifications';
 import type { Bindings } from '../types';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -180,10 +181,10 @@ app.post('/:id/join', async (c) => {
     const { DB } = c.env;
     const challengeId = c.req.param('id');
 
-    // Check if challenge exists
+    // Check if challenge exists and get creator
     const challenge = await DB.prepare(
-      'SELECT id FROM challenges WHERE id = ?'
-    ).bind(challengeId).first();
+      'SELECT id, creator_id FROM challenges WHERE id = ?'
+    ).bind(challengeId).first<{ id: string; creator_id: string }>();
 
     if (!challenge) {
       return c.json({ error: 'Challenge not found' }, 404);
@@ -204,6 +205,16 @@ app.post('/:id/join', async (c) => {
       INSERT INTO challenge_participants (id, challenge_id, user_id)
       VALUES (?, ?, ?)
     `).bind(participantId, challengeId, userId).run();
+
+    // Notify challenge creator
+    if (challenge.creator_id !== userId) {
+      await createNotification(DB, {
+        user_id: challenge.creator_id,
+        type: 'CHALLENGE_JOIN',
+        actor_id: userId,
+        challenge_id: challengeId
+      });
+    }
 
     return c.json({ success: true });
   } catch (error) {
@@ -317,6 +328,13 @@ app.post('/badges/check', async (c) => {
           INSERT INTO user_badges (id, user_id, badge_id)
           VALUES (?, ?, ?)
         `).bind(userBadgeId, userId, badgeData.id).run();
+
+        // Create badge earned notification
+        await createNotification(DB, {
+          user_id: userId,
+          type: 'BADGE_EARNED',
+          badge_id: badgeData.id
+        });
 
         newBadges.push(badgeData);
       }

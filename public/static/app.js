@@ -130,6 +130,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (currentUser) {
             showView('feed');
             await loadFeed();
+            startNotificationPolling(); // Start polling for notifications
         } else {
             showView('auth');
         }
@@ -234,6 +235,15 @@ function setupEventListeners() {
         if (e.target.id === 'btn-search-users') showUserSearchModal();
         if (e.target.id === 'close-user-search-modal') hideUserSearchModal();
         if (e.target.id === 'close-user-profile-modal') hideUserProfileModal();
+        
+        // Close notifications dropdown when clicking outside
+        const notificationsDropdown = document.getElementById('notifications-dropdown');
+        const notificationsContainer = document.getElementById('notifications-container');
+        if (notificationsDropdown && !notificationsDropdown.classList.contains('hidden')) {
+            if (!notificationsContainer?.contains(e.target)) {
+                hideNotificationsDropdown();
+            }
+        }
     });
     
     // Add workout form
@@ -488,6 +498,7 @@ async function handleSignup(e) {
 }
 
 function handleLogout() {
+    stopNotificationPolling(); // Stop polling on logout
     token = null;
     currentUser = null;
     localStorage.removeItem('token');
@@ -610,8 +621,14 @@ function updateMobileNavigation() {
 
 function updateNavigation() {
     const navMenu = document.getElementById('nav-menu');
+    const notificationsContainer = document.getElementById('notifications-container');
     
     if (currentUser) {
+        // Show notifications icon
+        if (notificationsContainer) {
+            notificationsContainer.classList.remove('hidden');
+        }
+        
         navMenu.innerHTML = `
             <button id="nav-feed" class="nav-link font-medium ${currentView === 'feed' ? 'text-blue-600' : 'text-gray-600'}">
                 <i class="fas fa-home mr-1"></i>피드
@@ -631,6 +648,10 @@ function updateNavigation() {
             </div>
         `;
     } else {
+        // Hide notifications icon
+        if (notificationsContainer) {
+            notificationsContainer.classList.add('hidden');
+        }
         navMenu.innerHTML = '';
     }
 }
@@ -3072,7 +3093,7 @@ async function leaveChallenge(challengeId) {
 async function checkBadges() {
     try {
         const response = await axios.post(`${API_BASE}/challenges/badges/check`);
-        const newBadges = response.data.new_badges || [];
+        const newBadges = response.data.newBadges || [];
         
         // Show toast for each new badge
         for (const badge of newBadges) {
@@ -3086,4 +3107,195 @@ async function checkBadges() {
     } catch (error) {
         console.error('Failed to check badges:', error);
     }
+}
+
+// ================================
+// Notification System Functions
+// ================================
+
+let notificationPollingInterval = null;
+let unreadNotificationCount = 0;
+
+// Load notifications
+async function loadNotifications() {
+    try {
+        const response = await axios.get(`${API_BASE}/notifications?limit=20`);
+        const notifications = response.data.notifications || [];
+        
+        const container = document.getElementById('notifications-dropdown-list');
+        if (!container) return;
+        
+        if (notifications.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-8 text-gray-400">
+                    <i class="fas fa-bell-slash text-4xl mb-3 opacity-50"></i>
+                    <p>알림이 없습니다</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = notifications.map(notif => {
+            const timeAgo = getTimeAgo(notif.created_at);
+            let message = '';
+            let icon = '';
+            let linkHref = '#';
+            
+            switch(notif.type) {
+                case 'LIKE':
+                    icon = '❤️';
+                    message = `<strong>${notif.actor_name}</strong>님이 회원님의 운동을 좋아합니다`;
+                    linkHref = `javascript:showView('feed')`;
+                    break;
+                case 'COMMENT':
+                    icon = '💬';
+                    message = `<strong>${notif.actor_name}</strong>님이 댓글을 남겼습니다: "${notif.comment_text}"`;
+                    linkHref = `javascript:showView('feed')`;
+                    break;
+                case 'FOLLOW':
+                    icon = '👤';
+                    message = `<strong>${notif.actor_name}</strong>님이 회원님을 팔로우하기 시작했습니다`;
+                    linkHref = `javascript:showView('feed')`;
+                    break;
+                case 'CHALLENGE_JOIN':
+                    icon = '🏆';
+                    message = `<strong>${notif.actor_name}</strong>님이 회원님의 챌린지에 참가했습니다`;
+                    linkHref = `javascript:showView('stats')`;
+                    break;
+                case 'BADGE_EARNED':
+                    icon = notif.badge_icon || '🎖️';
+                    message = `새 배지를 획득했습니다: <strong>${notif.badge_name}</strong>`;
+                    linkHref = `javascript:showView('stats')`;
+                    break;
+                default:
+                    icon = '🔔';
+                    message = '새 알림이 있습니다';
+            }
+            
+            return `
+                <a href="${linkHref}" 
+                   onclick="markNotificationAsRead('${notif.id}'); hideNotificationsDropdown();"
+                   class="block px-4 py-3 hover:bg-dark-bg transition ${notif.is_read ? 'opacity-60' : 'bg-blue-500 bg-opacity-5'}">
+                    <div class="flex items-start space-x-3">
+                        <div class="text-2xl">${icon}</div>
+                        <div class="flex-1 min-w-0">
+                            <p class="text-sm text-gray-200 mb-1">${message}</p>
+                            <p class="text-xs text-gray-500">${timeAgo}</p>
+                        </div>
+                        ${!notif.is_read ? '<div class="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>' : ''}
+                    </div>
+                </a>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Failed to load notifications:', error);
+    }
+}
+
+// Get unread notification count
+async function getUnreadNotificationCount() {
+    try {
+        const response = await axios.get(`${API_BASE}/notifications/unread-count`);
+        unreadNotificationCount = response.data.count || 0;
+        updateNotificationBadge();
+    } catch (error) {
+        console.error('Failed to get unread count:', error);
+    }
+}
+
+// Update notification badge
+function updateNotificationBadge() {
+    const badge = document.getElementById('notification-badge');
+    if (!badge) return;
+    
+    if (unreadNotificationCount > 0) {
+        badge.textContent = unreadNotificationCount > 99 ? '99+' : unreadNotificationCount;
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+}
+
+// Toggle notifications dropdown
+function toggleNotificationsDropdown() {
+    const dropdown = document.getElementById('notifications-dropdown');
+    if (!dropdown) return;
+    
+    const isHidden = dropdown.classList.contains('hidden');
+    
+    if (isHidden) {
+        dropdown.classList.remove('hidden');
+        loadNotifications();
+    } else {
+        dropdown.classList.add('hidden');
+    }
+}
+
+// Hide notifications dropdown
+function hideNotificationsDropdown() {
+    const dropdown = document.getElementById('notifications-dropdown');
+    if (dropdown) {
+        dropdown.classList.add('hidden');
+    }
+}
+
+// Mark notification as read
+async function markNotificationAsRead(notificationId) {
+    try {
+        await axios.put(`${API_BASE}/notifications/${notificationId}/read`);
+        await getUnreadNotificationCount();
+    } catch (error) {
+        console.error('Failed to mark notification as read:', error);
+    }
+}
+
+// Mark all notifications as read
+async function markAllNotificationsAsRead() {
+    try {
+        await axios.put(`${API_BASE}/notifications/read-all`);
+        await getUnreadNotificationCount();
+        await loadNotifications();
+        showToast('모든 알림을 읽음으로 표시했습니다', 'success');
+    } catch (error) {
+        console.error('Failed to mark all as read:', error);
+        showToast('알림 처리에 실패했습니다', 'error');
+    }
+}
+
+// Start notification polling
+function startNotificationPolling() {
+    // Initial load
+    getUnreadNotificationCount();
+    
+    // Poll every 30 seconds
+    if (notificationPollingInterval) {
+        clearInterval(notificationPollingInterval);
+    }
+    
+    notificationPollingInterval = setInterval(() => {
+        getUnreadNotificationCount();
+    }, 30000); // 30 seconds
+}
+
+// Stop notification polling
+function stopNotificationPolling() {
+    if (notificationPollingInterval) {
+        clearInterval(notificationPollingInterval);
+        notificationPollingInterval = null;
+    }
+}
+
+// Time ago helper
+function getTimeAgo(dateString) {
+    const date = new Date(dateString);
+    const now = new Date();
+    const seconds = Math.floor((now - date) / 1000);
+    
+    if (seconds < 60) return '방금 전';
+    if (seconds < 3600) return `${Math.floor(seconds / 60)}분 전`;
+    if (seconds < 86400) return `${Math.floor(seconds / 3600)}시간 전`;
+    if (seconds < 604800) return `${Math.floor(seconds / 86400)}일 전`;
+    if (seconds < 2592000) return `${Math.floor(seconds / 604800)}주 전`;
+    return `${Math.floor(seconds / 2592000)}개월 전`;
 }

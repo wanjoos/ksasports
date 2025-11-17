@@ -1,5 +1,6 @@
 import { Hono } from 'hono';
 import { verify } from 'hono/jwt';
+import { createNotification } from './notifications';
 import type { Bindings } from '../types';
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -13,10 +14,12 @@ app.use('/*', async (c, next) => {
 
   try {
     const token = authHeader.substring(7);
-    const payload = await verify(token, 'your-secret-key');
-    c.set('userId', payload.userId as string);
+    const JWT_SECRET = c.env.JWT_SECRET || 'workout-together-secret-key-change-in-production';
+    const payload = await verify(token, JWT_SECRET);
+    c.set('userId', payload.sub as string);
     await next();
   } catch (error) {
+    console.error('JWT verification error:', error);
     return c.json({ error: 'Invalid token' }, 401);
   }
 });
@@ -165,6 +168,13 @@ app.post('/users/:id/follow', async (c) => {
       INSERT INTO user_follows (id, follower_id, following_id)
       VALUES (?, ?, ?)
     `).bind(followId, userId, targetUserId).run();
+
+    // Create follow notification
+    await createNotification(DB, {
+      user_id: targetUserId,
+      type: 'FOLLOW',
+      actor_id: userId
+    });
 
     return c.json({ success: true, following: true });
   } catch (error) {
