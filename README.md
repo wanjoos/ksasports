@@ -36,9 +36,13 @@
 
 ## 🔗 URL 정보
 
+### 프로덕션 환경
+- **Production URL**: https://workout-together.pages.dev
+- **Latest Deployment**: https://2e73b047.workout-together.pages.dev
+- **GitHub Repository**: https://github.com/wanjoos/ksasports
+
 ### 개발 환경
 - **로컬 서버**: http://localhost:3000
-- **Sandbox URL**: https://3000-i24xientnmogpg4hwbqop-0e616f0a.sandbox.novita.ai
 
 ### API 엔드포인트
 
@@ -104,7 +108,12 @@
 
 ### 스토리지 서비스
 - **Cloudflare D1**: SQLite 기반 관계형 데이터베이스 (모든 데이터 저장)
-- **Cloudflare R2**: 이미지 저장용 (향후 구현 예정)
+  - Database: `workout-together-db`
+  - Database ID: `8c08be9c-1b07-4f92-8a46-1faf776232f7`
+- **Cloudflare R2**: 이미지 저장용
+  - Bucket: `workout-images`
+  - 최대 파일 크기: 5MB
+  - 지원 형식: jpg, jpeg, png, gif, webp
 
 ## 💻 기술 스택
 
@@ -155,10 +164,14 @@
 
 ## 📈 배포 상태
 
-- **플랫폼**: Cloudflare Pages (배포 준비 완료)
-- **현재 상태**: ✅ 개발 환경 구동 중
+- **플랫폼**: Cloudflare Pages
+- **현재 상태**: ✅ 프로덕션 배포 완료
 - **로컬 테스트**: ✅ 완료
-- **프로덕션 배포**: 준비 완료 (Cloudflare API 키 설정 필요)
+- **프로덕션 배포**: ✅ 활성
+- **D1 Database**: ✅ 연결됨
+- **R2 Storage**: ✅ 연결됨
+- **GitHub**: ✅ 동기화됨
+- **Last Deployed**: 2025-11-17
 
 ## 🔮 향후 개발 계획
 
@@ -170,23 +183,19 @@
 - ✅ 체중 관리
 
 ### Phase 2 (다음 단계)
-1. **이미지 업로드 구현**
-   - R2 버킷 연동
-   - 이미지 최적화 및 썸네일 생성
-
-2. **OCR 기능 추가**
+1. **OCR 기능 추가**
    - Google Vision API 또는 OCR.space 연동
    - 운동 앱 스크린샷에서 자동 데이터 추출
 
-3. **그룹 기능**
+2. **그룹 기능**
    - 소규모 그룹 생성 및 관리
    - 그룹별 피드 분리
 
-4. **차트 시각화**
+3. **차트 시각화**
    - Chart.js를 활용한 그래프
    - 운동 추세 분석
 
-5. **외부 플랫폼 연동**
+4. **외부 플랫폼 연동**
    - 삼성헬스 OAuth 연동
    - 가민, 스트라바 API 연동
 
@@ -221,8 +230,14 @@ fuser -k 3000/tcp 2>/dev/null || true
 
 ### 프로덕션 배포
 ```bash
-# Cloudflare API 키 설정 필요
-npm run deploy:prod
+# 빌드
+npm run build
+
+# Cloudflare Pages 배포
+CLOUDFLARE_API_TOKEN="your-token" npx wrangler pages deploy dist --project-name workout-together
+
+# D1 마이그레이션 (프로덕션)
+CLOUDFLARE_API_TOKEN="your-token" npx wrangler d1 migrations apply workout-together-db --remote
 ```
 
 ## 🙏 참고한 플랫폼
@@ -233,6 +248,7 @@ npm run deploy:prod
 
 ---
 
-**Last Updated**: 2025-11-16
-**Version**: 1.0.0 (MVP)
-**Tech Stack**: Hono + Cloudflare Workers + D1 + TailwindCSS
+**Last Updated**: 2025-11-17
+**Version**: 1.0.0 (MVP - Deployed)
+**Tech Stack**: Hono + Cloudflare Workers + D1 + R2 + TailwindCSS
+**Status**: 🟢 Production Ready
