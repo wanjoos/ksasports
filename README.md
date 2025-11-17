@@ -169,20 +169,23 @@ npm run build
 # 개발 서버 시작 (PM2)
 pm2 start ecosystem.config.cjs
 
+# **중요**: 첫 실행 시 DB 초기화 (서버 시작 후 실행)
+# 1. 서버 시작 대기 (3-5초)
+# 2. API 요청으로 DB 파일 생성 트리거
+curl -X POST http://localhost:3000/api/auth/signup \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@test.com","password":"test","name":"Test"}'
+# 3. DB 마이그레이션 스크립트 실행
+node init-db.cjs
+
 # 개발 서버 재시작
 pm2 restart workout-together
 
 # 로그 확인
 pm2 logs workout-together --nostream
 
-# DB 마이그레이션 (로컬)
-npm run db:migrate:local
-
-# 테스트 데이터 삽입
-npm run db:seed
-
-# DB 초기화
-npm run db:reset
+# 포트 정리
+fuser -k 3000/tcp 2>/dev/null || true
 ```
 
 ### 프로덕션 배포
