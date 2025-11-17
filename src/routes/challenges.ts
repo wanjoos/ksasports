@@ -60,6 +60,35 @@ app.get('/', async (c) => {
   }
 });
 
+// Get user's badges (must be before /:id route)
+app.get('/badges', async (c) => {
+  try {
+    const userId = c.get('userId');
+    const { DB } = c.env;
+
+    const userBadges = await DB.prepare(`
+      SELECT b.*, ub.earned_at
+      FROM user_badges ub
+      JOIN badges b ON ub.badge_id = b.id
+      WHERE ub.user_id = ?
+      ORDER BY ub.earned_at DESC
+    `).bind(userId).all();
+
+    // Get all badges for comparison
+    const allBadges = await DB.prepare(`
+      SELECT * FROM badges ORDER BY requirement_value
+    `).all();
+
+    return c.json({
+      earned: userBadges.results || [],
+      all: allBadges.results || []
+    });
+  } catch (error) {
+    console.error('Get badges error:', error);
+    return c.json({ error: 'Failed to get badges' }, 500);
+  }
+});
+
 // Get challenge details with leaderboard
 app.get('/:id', async (c) => {
   try {
@@ -241,7 +270,6 @@ app.delete('/:id/join', async (c) => {
   }
 });
 
-// Get user's badges
 app.get('/badges/me', async (c) => {
   try {
     const userId = c.get('userId');

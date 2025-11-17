@@ -273,6 +273,78 @@ app.get('/users/:id/following', async (c) => {
   }
 });
 
+// Get all workouts feed
+app.get('/feed', async (c) => {
+  try {
+    const userId = c.get('userId');
+    const { DB } = c.env;
+    const page = Number(c.req.query('page') || '1');
+    const limit = Number(c.req.query('limit') || '20');
+    const offset = (page - 1) * limit;
+
+    // Get all workouts with user info
+    const workouts = await DB.prepare(`
+      SELECT 
+        w.*,
+        u.id as user_id, u.name as user_name, u.email as user_email,
+        u.profile_image_url as user_profile_image_url
+      FROM workouts w
+      JOIN users u ON w.user_id = u.id
+      ORDER BY w.created_at DESC
+      LIMIT ? OFFSET ?
+    `).bind(limit, offset).all();
+
+    // Add images, likes, comments for each workout
+    const workoutsWithDetails = await Promise.all(
+      (workouts.results || []).map(async (workout: any) => {
+        const images = await DB.prepare(
+          'SELECT url FROM workout_images WHERE workout_id = ?'
+        ).bind(workout.id).all();
+
+        const likesCount = await DB.prepare(
+          'SELECT COUNT(*) as count FROM likes WHERE workout_id = ?'
+        ).bind(workout.id).first<{ count: number }>();
+
+        const userLike = await DB.prepare(
+          'SELECT id FROM likes WHERE workout_id = ? AND user_id = ?'
+        ).bind(workout.id, userId).first();
+
+        const commentsCount = await DB.prepare(
+          'SELECT COUNT(*) as count FROM comments WHERE workout_id = ?'
+        ).bind(workout.id).first<{ count: number }>();
+
+        return {
+          id: workout.id,
+          user_id: workout.user_id,
+          workout_type: workout.workout_type,
+          started_at: workout.started_at,
+          duration_min: workout.duration_min,
+          distance_km: workout.distance_km,
+          pace_sec_per_km: workout.pace_sec_per_km,
+          calories: workout.calories,
+          memo: workout.memo,
+          created_at: workout.created_at,
+          user: {
+            id: workout.user_id,
+            name: workout.user_name,
+            email: workout.user_email,
+            profile_image_url: workout.user_profile_image_url
+          },
+          images: (images.results || []).map((img: any) => img.url),
+          likes_count: likesCount?.count || 0,
+          liked_by_me: !!userLike,
+          comments_count: commentsCount?.count || 0
+        };
+      })
+    );
+
+    return c.json(workoutsWithDetails);
+  } catch (error) {
+    console.error('Get feed error:', error);
+    return c.json({ error: 'Failed to get feed' }, 500);
+  }
+});
+
 // Get friends feed (workouts from following users)
 app.get('/feed/following', async (c) => {
   try {

@@ -6,8 +6,8 @@ import type { Bindings, User, UserWithPassword } from '../types';
 
 const auth = new Hono<{ Bindings: Bindings }>();
 
-// Sign up
-auth.post('/signup', async (c) => {
+// Sign up (register)
+auth.post('/register', async (c) => {
   try {
     const { email, password, name, height_cm } = await c.req.json();
     

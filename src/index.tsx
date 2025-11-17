@@ -14,6 +14,7 @@ import goals from './routes/goals';
 import social from './routes/social';
 import challenges from './routes/challenges';
 import notifications from './routes/notifications';
+import users from './routes/users';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -25,6 +26,7 @@ app.use('/static/*', serveStatic({ root: './' }));
 
 // API routes
 app.route('/api/auth', auth);
+app.route('/api/users', users);
 app.route('/api/workouts', workouts);
 app.route('/api/me/stats', stats);
 app.route('/api/me/weights', weight);
