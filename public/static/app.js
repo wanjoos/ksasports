@@ -277,21 +277,25 @@ function showView(view) {
     if (view === 'add-workout') loadWorkoutTemplates();
 }
 
-// Workout templates
+// Workout templates - 인기 운동 위주
 const workoutTemplates = [
     { type: 'RUN', emoji: '🏃', name: '러닝', distance: 5, duration: 30 },
-    { type: 'WALK', emoji: '🚶', name: '걷기', distance: 3, duration: 40 },
-    { type: 'BIKE', emoji: '🚴', name: '사이클', distance: 15, duration: 60 },
-    { type: 'BADMINTON', emoji: '🏸', name: '배드민턴', distance: 0, duration: 60 }
+    { type: 'TREADMILL', emoji: '🏃‍♂️', name: '런닝머신', distance: 5, duration: 30 },
+    { type: 'INDOOR_BIKE', emoji: '🚴‍♀️', name: '실내사이클', distance: 10, duration: 40 },
+    { type: 'STEPPER', emoji: '🪜', name: '스텝퍼', distance: 0, duration: 30 },
+    { type: 'HOME_TRAINING', emoji: '💪', name: '홈트', distance: 0, duration: 40 },
+    { type: 'WEIGHT', emoji: '🏋️', name: '웨이트', distance: 0, duration: 60 },
+    { type: 'BADMINTON', emoji: '🏸', name: '배드민턴', distance: 0, duration: 60 },
+    { type: 'WALK', emoji: '🚶', name: '걷기', distance: 3, duration: 40 }
 ];
 
 function loadWorkoutTemplates() {
     const container = document.getElementById('workout-templates');
     container.innerHTML = workoutTemplates.map(template => `
         <button type="button" onclick="applyTemplate('${template.type}')" 
-            class="stat-card rounded-xl p-4 text-center hover:scale-105 transition-transform">
-            <div class="text-3xl mb-2">${template.emoji}</div>
-            <div class="text-sm text-gray-300 font-medium">${template.name}</div>
+            class="stat-card rounded-lg p-3 text-center hover:scale-105 transition-transform">
+            <div class="text-2xl mb-1">${template.emoji}</div>
+            <div class="text-xs text-gray-300 font-medium">${template.name}</div>
         </button>
     `).join('');
 }
@@ -1061,23 +1065,99 @@ function formatPace(secPerKm) {
 
 function getWorkoutEmoji(type) {
     const emojis = {
+        // 야외 유산소
         'RUN': '🏃',
         'WALK': '🚶',
         'BIKE': '🚴',
-        'BADMINTON': '🏸',
+        'HIKING': '🥾',
+        'SWIMMING': '🏊',
+        
+        // 실내 유산소
+        'TREADMILL': '🏃‍♂️',
+        'INDOOR_BIKE': '🚴‍♀️',
+        'STEPPER': '🪜',
+        'ELLIPTICAL': '⚙️',
+        'ROWING': '🚣',
+        'JUMP_ROPE': '🪢',
+        
+        // 근력 운동
         'WEIGHT': '🏋️',
-        'OTHER': '💪'
+        'HOME_TRAINING': '💪',
+        'CROSSFIT': '🤸',
+        'CALISTHENICS': '🤸‍♂️',
+        
+        // 구기 종목
+        'BADMINTON': '🏸',
+        'TENNIS': '🎾',
+        'TABLE_TENNIS': '🏓',
+        'BASKETBALL': '🏀',
+        'SOCCER': '⚽',
+        'VOLLEYBALL': '🏐',
+        'GOLF': '⛳',
+        
+        // 격투기
+        'BOXING': '🥊',
+        'TAEKWONDO': '🥋',
+        'JUDO': '🥋',
+        
+        // 기타 스포츠
+        'YOGA': '🧘',
+        'PILATES': '🧘‍♀️',
+        'CLIMBING': '🧗',
+        'SKIING': '⛷️',
+        'SKATEBOARD': '🛹',
+        'DANCE': '💃',
+        
+        'OTHER': '⚡'
     };
-    return emojis[type] || '💪';
+    return emojis[type] || '⚡';
 }
 
 function getWorkoutTypeName(type) {
     const names = {
+        // 야외 유산소
         'RUN': '러닝',
         'WALK': '걷기',
         'BIKE': '사이클',
-        'BADMINTON': '배드민턴',
+        'HIKING': '등산',
+        'SWIMMING': '수영',
+        
+        // 실내 유산소
+        'TREADMILL': '러닝머신',
+        'INDOOR_BIKE': '실내사이클',
+        'STEPPER': '스텝퍼',
+        'ELLIPTICAL': '일립티컬',
+        'ROWING': '로잉머신',
+        'JUMP_ROPE': '줄넘기',
+        
+        // 근력 운동
         'WEIGHT': '웨이트',
+        'HOME_TRAINING': '홈트레이닝',
+        'CROSSFIT': '크로스핏',
+        'CALISTHENICS': '맨몸운동',
+        
+        // 구기 종목
+        'BADMINTON': '배드민턴',
+        'TENNIS': '테니스',
+        'TABLE_TENNIS': '탁구',
+        'BASKETBALL': '농구',
+        'SOCCER': '축구',
+        'VOLLEYBALL': '배구',
+        'GOLF': '골프',
+        
+        // 격투기
+        'BOXING': '복싱',
+        'TAEKWONDO': '태권도',
+        'JUDO': '유도',
+        
+        // 기타 스포츠
+        'YOGA': '요가',
+        'PILATES': '필라테스',
+        'CLIMBING': '클라이밍',
+        'SKIING': '스키',
+        'SKATEBOARD': '스케이트보드',
+        'DANCE': '댄스',
+        
         'OTHER': '기타'
     };
     return names[type] || '운동';

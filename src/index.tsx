@@ -303,8 +303,14 @@ app.get('/', (c) => {
         <div id="add-workout-view" class="hidden">
             <div class="max-w-2xl mx-auto">
                 <!-- Quick Templates -->
-                <div id="workout-templates" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
-                    <!-- Will be populated by JS -->
+                <div class="mb-6">
+                    <h3 class="text-sm font-medium text-gray-400 mb-3 flex items-center">
+                        <i class="fas fa-bolt text-accent-blue mr-2"></i>
+                        빠른 시작
+                    </h3>
+                    <div id="workout-templates" class="grid grid-cols-4 md:grid-cols-8 gap-2">
+                        <!-- Will be populated by JS -->
+                    </div>
                 </div>
                 
                 <div class="bg-dark-card rounded-xl shadow-2xl p-8 border border-dark-border">
@@ -318,12 +324,52 @@ app.get('/', (c) => {
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-2">운동 종류</label>
                             <select id="workout-type" class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue" required>
-                                <option value="RUN">🏃 러닝</option>
-                                <option value="WALK">🚶 걷기</option>
-                                <option value="BIKE">🚴 사이클</option>
-                                <option value="BADMINTON">🏸 배드민턴</option>
-                                <option value="WEIGHT">🏋️ 웨이트</option>
-                                <option value="OTHER">⚡ 기타</option>
+                                <optgroup label="🏃 야외 유산소">
+                                    <option value="RUN">🏃 러닝</option>
+                                    <option value="WALK">🚶 걷기</option>
+                                    <option value="BIKE">🚴 사이클</option>
+                                    <option value="HIKING">🥾 등산</option>
+                                    <option value="SWIMMING">🏊 수영</option>
+                                </optgroup>
+                                <optgroup label="🏠 실내 유산소">
+                                    <option value="TREADMILL">🏃‍♂️ 러닝머신</option>
+                                    <option value="INDOOR_BIKE">🚴‍♀️ 실내사이클</option>
+                                    <option value="STEPPER">🪜 스텝퍼</option>
+                                    <option value="ELLIPTICAL">⚙️ 일립티컬</option>
+                                    <option value="ROWING">🚣 로잉머신</option>
+                                    <option value="JUMP_ROPE">🪢 줄넘기</option>
+                                </optgroup>
+                                <optgroup label="💪 근력 운동">
+                                    <option value="WEIGHT">🏋️ 웨이트</option>
+                                    <option value="HOME_TRAINING">💪 홈트레이닝</option>
+                                    <option value="CROSSFIT">🤸 크로스핏</option>
+                                    <option value="CALISTHENICS">🤸‍♂️ 맨몸운동</option>
+                                </optgroup>
+                                <optgroup label="🏀 구기 종목">
+                                    <option value="BADMINTON">🏸 배드민턴</option>
+                                    <option value="TENNIS">🎾 테니스</option>
+                                    <option value="TABLE_TENNIS">🏓 탁구</option>
+                                    <option value="BASKETBALL">🏀 농구</option>
+                                    <option value="SOCCER">⚽ 축구</option>
+                                    <option value="VOLLEYBALL">🏐 배구</option>
+                                    <option value="GOLF">⛳ 골프</option>
+                                </optgroup>
+                                <optgroup label="🥊 격투기">
+                                    <option value="BOXING">🥊 복싱</option>
+                                    <option value="TAEKWONDO">🥋 태권도</option>
+                                    <option value="JUDO">🥋 유도</option>
+                                </optgroup>
+                                <optgroup label="🧘 기타 스포츠">
+                                    <option value="YOGA">🧘 요가</option>
+                                    <option value="PILATES">🧘‍♀️ 필라테스</option>
+                                    <option value="CLIMBING">🧗 클라이밍</option>
+                                    <option value="SKIING">⛷️ 스키</option>
+                                    <option value="SKATEBOARD">🛹 스케이트보드</option>
+                                    <option value="DANCE">💃 댄스</option>
+                                </optgroup>
+                                <optgroup label="기타">
+                                    <option value="OTHER">⚡ 기타</option>
+                                </optgroup>
                             </select>
                         </div>
                         <div>
