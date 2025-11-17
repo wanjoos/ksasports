@@ -842,12 +842,48 @@ app.get('/', (c) => {
             </div>
 
             <!-- Highlights -->
-            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border">
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
                 <h3 class="text-lg md:text-2xl font-bold text-gray-200 mb-4 md:mb-6 flex items-center">
                     <i class="fas fa-trophy text-accent-green mr-2 md:mr-3 text-lg md:text-xl"></i>
                     개인 기록
                 </h3>
                 <div id="stats-highlights" class="grid grid-cols-1 md:grid-cols-3 gap-3 md:gap-6">
+                    <!-- Will be populated by JS -->
+                </div>
+            </div>
+
+            <!-- Badges Collection -->
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
+                <div class="flex justify-between items-center mb-4 md:mb-6">
+                    <h3 class="text-lg md:text-2xl font-bold text-gray-200 flex items-center">
+                        <i class="fas fa-medal text-accent-purple mr-2 md:mr-3 text-lg md:text-xl"></i>
+                        배지 컬렉션
+                    </h3>
+                    <div class="text-sm text-gray-400">
+                        <span id="earned-badges-count" class="text-accent-green font-bold">0</span>
+                        <span> / </span>
+                        <span id="total-badges-count">0</span>
+                    </div>
+                </div>
+                <div id="badges-collection" class="grid grid-cols-2 md:grid-cols-5 gap-3 md:gap-4">
+                    <!-- Will be populated by JS -->
+                </div>
+            </div>
+
+            <!-- Challenges -->
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border">
+                <div class="flex justify-between items-center mb-4 md:mb-6">
+                    <h3 class="text-lg md:text-2xl font-bold text-gray-200 flex items-center">
+                        <i class="fas fa-trophy text-accent-orange mr-2 md:mr-3 text-lg md:text-xl"></i>
+                        운동 챌린지
+                    </h3>
+                    <button onclick="showCreateChallengeModal()" class="btn-primary text-white px-4 py-2 rounded-lg text-sm font-semibold flex items-center space-x-2">
+                        <i class="fas fa-plus"></i>
+                        <span class="hidden md:inline">챌린지 만들기</span>
+                        <span class="md:hidden">만들기</span>
+                    </button>
+                </div>
+                <div id="challenges-list" class="space-y-4">
                     <!-- Will be populated by JS -->
                 </div>
             </div>

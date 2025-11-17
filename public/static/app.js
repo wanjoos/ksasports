@@ -1083,6 +1083,10 @@ async function handleAddWorkout(e) {
         await axios.post(`${API_BASE}/workouts`, data);
         
         showToast('운동 기록이 추가되었습니다! 🎉', 'success');
+        
+        // Check for new badges
+        await checkBadges();
+        
         showView('feed');
         document.getElementById('add-workout-form').reset();
         document.getElementById('image-preview').innerHTML = '';
@@ -1134,7 +1138,9 @@ async function loadStats() {
         const [statsRes, highlightsRes, goalsRes] = await Promise.all([
             axios.get(`${API_BASE}/me/stats?range=weekly`),
             axios.get(`${API_BASE}/me/stats/highlights`),
-            loadGoalsProgress()
+            loadGoalsProgress(),
+            loadChallenges(),
+            loadBadges()
         ]);
         
         const stats = statsRes.data;
@@ -2644,5 +2650,440 @@ async function handleEditProfile(e) {
     } catch (error) {
         console.error('Failed to update profile:', error);
         showToast('프로필 업데이트에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
+    }
+}
+
+// ================================
+// Challenge System Functions
+// ================================
+
+// Load challenges and badges
+async function loadChallenges() {
+    try {
+        const response = await axios.get(`${API_BASE}/challenges`);
+        const challenges = response.data;
+        
+        const container = document.getElementById('challenges-list');
+        if (!container) return;
+        
+        if (challenges.length === 0) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400">
+                    <i class="fas fa-trophy text-5xl mb-4 opacity-50"></i>
+                    <p class="text-lg">아직 진행 중인 챌린지가 없습니다</p>
+                    <p class="text-sm mt-2">첫 번째 챌린지를 만들어보세요!</p>
+                </div>
+            `;
+            return;
+        }
+        
+        container.innerHTML = challenges.map(challenge => {
+            const startDate = new Date(challenge.start_date);
+            const endDate = new Date(challenge.end_date);
+            const now = new Date();
+            const isActive = now >= startDate && now <= endDate;
+            const isUpcoming = now < startDate;
+            const isEnded = now > endDate;
+            
+            let statusBadge = '';
+            if (isActive) {
+                statusBadge = '<span class="bg-green-500 text-white text-xs px-2 py-1 rounded">진행중</span>';
+            } else if (isUpcoming) {
+                statusBadge = '<span class="bg-blue-500 text-white text-xs px-2 py-1 rounded">시작 전</span>';
+            } else {
+                statusBadge = '<span class="bg-gray-500 text-white text-xs px-2 py-1 rounded">종료</span>';
+            }
+            
+            const typeIcons = {
+                'DISTANCE': '🏃',
+                'DURATION': '⏱️',
+                'COUNT': '🔢'
+            };
+            
+            const typeLabels = {
+                'DISTANCE': '거리',
+                'DURATION': '시간',
+                'COUNT': '횟수'
+            };
+            
+            return `
+                <div class="workout-card rounded-xl p-6 cursor-pointer" onclick="showChallengeDetailModal('${challenge.id}')">
+                    <div class="flex justify-between items-start mb-4">
+                        <div class="flex-1">
+                            <div class="flex items-center space-x-2 mb-2">
+                                <span class="text-2xl">${typeIcons[challenge.challenge_type]}</span>
+                                <h3 class="text-xl font-bold text-gray-200">${challenge.title}</h3>
+                            </div>
+                            <p class="text-gray-400 text-sm mb-2">${challenge.description || ''}</p>
+                            <div class="flex items-center space-x-3 text-xs text-gray-500">
+                                <span><i class="fas fa-user mr-1"></i>${challenge.creator_name}</span>
+                                <span><i class="fas fa-users mr-1"></i>${challenge.participants_count}명 참가</span>
+                            </div>
+                        </div>
+                        <div class="flex flex-col items-end space-y-2">
+                            ${statusBadge}
+                            ${challenge.is_participating ? '<span class="bg-accent-blue text-white text-xs px-2 py-1 rounded">참가중</span>' : ''}
+                        </div>
+                    </div>
+                    
+                    <div class="border-t border-dark-border pt-4">
+                        <div class="flex justify-between items-center text-sm">
+                            <div>
+                                <span class="text-gray-400">${typeLabels[challenge.challenge_type]} 목표:</span>
+                                <span class="text-accent-green font-bold ml-2">
+                                    ${challenge.target_value}${challenge.challenge_type === 'DISTANCE' ? 'km' : challenge.challenge_type === 'DURATION' ? '분' : '회'}
+                                </span>
+                            </div>
+                            <div class="text-gray-500">
+                                ${startDate.toLocaleDateString()} ~ ${endDate.toLocaleDateString()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }).join('');
+        
+    } catch (error) {
+        console.error('Failed to load challenges:', error);
+        showToast('챌린지를 불러오는데 실패했습니다', 'error');
+    }
+}
+
+// Load user badges
+async function loadBadges() {
+    try {
+        const response = await axios.get(`${API_BASE}/challenges/badges/me`);
+        const { earned, all } = response.data;
+        
+        const container = document.getElementById('badges-collection');
+        if (!container) return;
+        
+        container.innerHTML = all.map(badge => {
+            const isEarned = earned.some(e => e.badge_id === badge.id);
+            
+            return `
+                <div class="stat-card rounded-lg p-4 text-center ${isEarned ? '' : 'opacity-40'}">
+                    <div class="text-4xl mb-2">${badge.icon}</div>
+                    <h4 class="font-bold text-gray-200 text-sm mb-1">${badge.name}</h4>
+                    <p class="text-xs text-gray-400 mb-2">${badge.description}</p>
+                    ${isEarned ? 
+                        `<div class="text-xs text-accent-green font-bold">✓ 획득</div>` : 
+                        `<div class="text-xs text-gray-500">미획득</div>`
+                    }
+                </div>
+            `;
+        }).join('');
+        
+        // Update badge count
+        document.getElementById('earned-badges-count').textContent = earned.length;
+        document.getElementById('total-badges-count').textContent = all.length;
+        
+    } catch (error) {
+        console.error('Failed to load badges:', error);
+        showToast('배지를 불러오는데 실패했습니다', 'error');
+    }
+}
+
+// Show challenge detail modal with leaderboard
+async function showChallengeDetailModal(challengeId) {
+    try {
+        showLoading();
+        const response = await axios.get(`${API_BASE}/challenges/${challengeId}`);
+        hideLoading();
+        
+        const challenge = response.data;
+        const leaderboard = challenge.leaderboard || [];
+        
+        const typeLabels = {
+            'DISTANCE': '거리',
+            'DURATION': '시간',
+            'COUNT': '횟수'
+        };
+        
+        const typeUnits = {
+            'DISTANCE': 'km',
+            'DURATION': '분',
+            'COUNT': '회'
+        };
+        
+        const modal = document.createElement('div');
+        modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+        modal.innerHTML = `
+            <div class="bg-dark-card rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div class="p-6 border-b border-dark-border">
+                    <div class="flex justify-between items-start mb-4">
+                        <h2 class="text-2xl font-bold text-gray-200">${challenge.title}</h2>
+                        <button onclick="this.closest('.fixed').remove()" class="text-gray-400 hover:text-gray-200">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <p class="text-gray-400 mb-4">${challenge.description || ''}</p>
+                    
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <div class="bg-dark-bg rounded-lg p-4">
+                            <div class="text-gray-400 text-sm mb-1">목표</div>
+                            <div class="text-accent-green text-2xl font-bold">
+                                ${challenge.target_value}${typeUnits[challenge.challenge_type]}
+                            </div>
+                        </div>
+                        <div class="bg-dark-bg rounded-lg p-4">
+                            <div class="text-gray-400 text-sm mb-1">참가자</div>
+                            <div class="text-accent-blue text-2xl font-bold">${challenge.participants_count}명</div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center justify-between text-sm text-gray-400 mb-4">
+                        <span><i class="fas fa-calendar mr-2"></i>${new Date(challenge.start_date).toLocaleDateString()} ~ ${new Date(challenge.end_date).toLocaleDateString()}</span>
+                        <span><i class="fas fa-user mr-2"></i>${challenge.creator_name}</span>
+                    </div>
+                    
+                    ${challenge.is_participating ? `
+                        <button onclick="leaveChallengeConfirm('${challenge.id}')" 
+                            class="w-full bg-red-600 hover:bg-red-700 text-white py-3 rounded-lg font-semibold transition">
+                            <i class="fas fa-sign-out-alt mr-2"></i>챌린지 나가기
+                        </button>
+                    ` : `
+                        <button onclick="joinChallenge('${challenge.id}')" 
+                            class="w-full btn-primary text-white py-3 rounded-lg font-semibold">
+                            <i class="fas fa-plus mr-2"></i>챌린지 참가하기
+                        </button>
+                    `}
+                </div>
+                
+                <div class="p-6">
+                    <h3 class="text-xl font-bold text-gray-200 mb-4 flex items-center">
+                        <i class="fas fa-trophy text-accent-green mr-2"></i>
+                        리더보드 (TOP 10)
+                    </h3>
+                    
+                    ${leaderboard.length === 0 ? `
+                        <div class="text-center py-8 text-gray-400">
+                            <i class="fas fa-medal text-4xl mb-3 opacity-50"></i>
+                            <p>아직 기록이 없습니다</p>
+                        </div>
+                    ` : `
+                        <div class="space-y-3">
+                            ${leaderboard.map((entry, index) => `
+                                <div class="flex items-center justify-between bg-dark-bg rounded-lg p-4 ${index < 3 ? 'border-2 border-accent-green' : ''}">
+                                    <div class="flex items-center space-x-4">
+                                        <div class="text-2xl font-bold ${index === 0 ? 'text-yellow-500' : index === 1 ? 'text-gray-300' : index === 2 ? 'text-orange-600' : 'text-gray-500'}">
+                                            ${index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `#${index + 1}`}
+                                        </div>
+                                        <div>
+                                            <div class="font-bold text-gray-200">${entry.name}</div>
+                                            <div class="text-sm text-gray-400">${typeLabels[challenge.challenge_type]}</div>
+                                        </div>
+                                    </div>
+                                    <div class="text-right">
+                                        <div class="text-2xl font-bold text-accent-green">${entry.progress.toFixed(1)}</div>
+                                        <div class="text-sm text-gray-400">${typeUnits[challenge.challenge_type]}</div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `}
+                </div>
+            </div>
+        `;
+        
+        document.body.appendChild(modal);
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to load challenge detail:', error);
+        showToast('챌린지 정보를 불러오는데 실패했습니다', 'error');
+    }
+}
+
+// Show create challenge modal
+function showCreateChallengeModal() {
+    const modal = document.createElement('div');
+    modal.id = 'create-challenge-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 p-4';
+    modal.innerHTML = `
+        <div class="bg-dark-card rounded-2xl max-w-xl w-full max-h-[90vh] overflow-y-auto">
+            <div class="p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold text-gray-200">새 챌린지 만들기</h2>
+                    <button onclick="document.getElementById('create-challenge-modal').remove()" class="text-gray-400 hover:text-gray-200">
+                        <i class="fas fa-times text-xl"></i>
+                    </button>
+                </div>
+                
+                <form id="create-challenge-form" class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">챌린지 제목 *</label>
+                        <input type="text" id="challenge-title" required
+                            class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200"
+                            placeholder="예: 12월 100km 달리기 챌린지">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">설명</label>
+                        <textarea id="challenge-description" rows="3"
+                            class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200"
+                            placeholder="챌린지에 대한 설명을 입력하세요"></textarea>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">챌린지 타입 *</label>
+                        <select id="challenge-type" required
+                            class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200">
+                            <option value="DISTANCE">🏃 거리 (km)</option>
+                            <option value="DURATION">⏱️ 시간 (분)</option>
+                            <option value="COUNT">🔢 횟수 (회)</option>
+                        </select>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">목표 값 *</label>
+                        <input type="number" id="challenge-target" required min="1" step="0.1"
+                            class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200"
+                            placeholder="예: 100">
+                    </div>
+                    
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">시작일 *</label>
+                            <input type="date" id="challenge-start-date" required
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-300 mb-2">종료일 *</label>
+                            <input type="date" id="challenge-end-date" required
+                                class="w-full px-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200">
+                        </div>
+                    </div>
+                    
+                    <div class="flex items-center space-x-2">
+                        <input type="checkbox" id="challenge-is-public" checked
+                            class="w-5 h-5 text-accent-blue bg-dark-bg border-dark-border rounded focus:ring-accent-blue">
+                        <label for="challenge-is-public" class="text-sm text-gray-300">
+                            공개 챌린지 (모든 사용자가 참가 가능)
+                        </label>
+                    </div>
+                    
+                    <div class="flex space-x-4 pt-4">
+                        <button type="submit" class="flex-1 btn-primary text-white py-3 rounded-lg font-semibold">
+                            <i class="fas fa-plus mr-2"></i>챌린지 만들기
+                        </button>
+                        <button type="button" onclick="document.getElementById('create-challenge-modal').remove()"
+                            class="flex-1 bg-gray-700 text-gray-200 py-3 rounded-lg hover:bg-gray-600 transition font-semibold">
+                            취소
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Set default dates (today and 30 days later)
+    const today = new Date();
+    const endDate = new Date(today.getTime() + 30 * 24 * 60 * 60 * 1000);
+    document.getElementById('challenge-start-date').valueAsDate = today;
+    document.getElementById('challenge-end-date').valueAsDate = endDate;
+    
+    // Form submit handler
+    document.getElementById('create-challenge-form').addEventListener('submit', handleCreateChallenge);
+}
+
+// Handle create challenge
+async function handleCreateChallenge(e) {
+    e.preventDefault();
+    
+    const title = document.getElementById('challenge-title').value;
+    const description = document.getElementById('challenge-description').value;
+    const challenge_type = document.getElementById('challenge-type').value;
+    const target_value = parseFloat(document.getElementById('challenge-target').value);
+    const start_date = document.getElementById('challenge-start-date').value;
+    const end_date = document.getElementById('challenge-end-date').value;
+    const is_public = document.getElementById('challenge-is-public').checked ? 1 : 0;
+    
+    try {
+        showLoading();
+        await axios.post(`${API_BASE}/challenges`, {
+            title,
+            description,
+            challenge_type,
+            target_value,
+            start_date,
+            end_date,
+            is_public
+        });
+        
+        hideLoading();
+        document.getElementById('create-challenge-modal').remove();
+        showToast('챌린지가 생성되었습니다!', 'success');
+        await loadChallenges();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to create challenge:', error);
+        showToast('챌린지 생성에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
+    }
+}
+
+// Join challenge
+async function joinChallenge(challengeId) {
+    try {
+        showLoading();
+        await axios.post(`${API_BASE}/challenges/${challengeId}/join`);
+        hideLoading();
+        
+        showToast('챌린지에 참가했습니다!', 'success');
+        document.querySelector('.fixed').remove(); // Close modal
+        await loadChallenges();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to join challenge:', error);
+        showToast('챌린지 참가에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
+    }
+}
+
+// Leave challenge with confirmation
+function leaveChallengeConfirm(challengeId) {
+    if (confirm('정말 이 챌린지에서 나가시겠습니까?')) {
+        leaveChallenge(challengeId);
+    }
+}
+
+// Leave challenge
+async function leaveChallenge(challengeId) {
+    try {
+        showLoading();
+        await axios.delete(`${API_BASE}/challenges/${challengeId}/join`);
+        hideLoading();
+        
+        showToast('챌린지에서 나갔습니다', 'success');
+        document.querySelector('.fixed').remove(); // Close modal
+        await loadChallenges();
+        
+    } catch (error) {
+        hideLoading();
+        console.error('Failed to leave challenge:', error);
+        showToast('챌린지 나가기에 실패했습니다: ' + (error.response?.data?.error || error.message), 'error');
+    }
+}
+
+// Check and award badges after workout
+async function checkBadges() {
+    try {
+        const response = await axios.post(`${API_BASE}/challenges/badges/check`);
+        const newBadges = response.data.new_badges || [];
+        
+        // Show toast for each new badge
+        for (const badge of newBadges) {
+            showToast(`🎉 배지 획득: ${badge.icon} ${badge.name}!`, 'success');
+        }
+        
+        if (newBadges.length > 0) {
+            await loadBadges();
+        }
+        
+    } catch (error) {
+        console.error('Failed to check badges:', error);
     }
 }
