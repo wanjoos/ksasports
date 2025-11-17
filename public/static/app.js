@@ -567,7 +567,8 @@ function loadWorkoutTemplates() {
     const container = document.getElementById('workout-templates');
     container.innerHTML = workoutTemplates.map(template => `
         <button type="button" onclick="applyTemplate('${template.type}')" 
-            class="stat-card rounded-lg p-3 text-center hover:scale-105 transition-transform">
+            data-template-type="${template.type}"
+            class="template-btn stat-card rounded-lg p-3 text-center hover:scale-105 transition-transform border-2 border-transparent">
             <div class="text-2xl mb-1">${template.emoji}</div>
             <div class="text-xs text-gray-300 font-medium">${template.name}</div>
         </button>
@@ -577,6 +578,19 @@ function loadWorkoutTemplates() {
 function applyTemplate(type) {
     const template = workoutTemplates.find(t => t.type === type);
     if (!template) return;
+    
+    // Remove active class from all template buttons
+    document.querySelectorAll('.template-btn').forEach(btn => {
+        btn.classList.remove('border-accent-blue', 'bg-accent-blue', 'bg-opacity-10');
+        btn.classList.add('border-transparent');
+    });
+    
+    // Add active class to selected button
+    const selectedBtn = document.querySelector(`[data-template-type="${type}"]`);
+    if (selectedBtn) {
+        selectedBtn.classList.remove('border-transparent');
+        selectedBtn.classList.add('border-accent-blue', 'bg-accent-blue', 'bg-opacity-10');
+    }
     
     document.getElementById('workout-type').value = type;
     if (template.distance > 0) {
@@ -664,7 +678,7 @@ async function loadFeed() {
         if (currentFeedFilter === 'following') {
             response = await axios.get(`${API_BASE}/social/feed/following`);
         } else {
-            response = await axios.get(`${API_BASE}/workouts/feed`);
+            response = await axios.get(`${API_BASE}/social/feed`);
         }
         
         allWorkouts = response.data;
@@ -1159,10 +1173,12 @@ async function loadStats() {
         const [statsRes, highlightsRes, goalsRes] = await Promise.all([
             axios.get(`${API_BASE}/me/stats?range=weekly`),
             axios.get(`${API_BASE}/me/stats/highlights`),
-            loadGoalsProgress(),
-            loadChallenges(),
-            loadBadges()
+            loadGoalsProgress()
         ]);
+        
+        // Load challenges and badges without blocking or showing errors
+        loadChallenges().catch(() => {});
+        loadBadges().catch(() => {});
         
         const stats = statsRes.data;
         const highlights = highlightsRes.data;
@@ -2680,6 +2696,9 @@ async function handleEditProfile(e) {
 
 // Load challenges and badges
 async function loadChallenges() {
+    const container = document.getElementById('challenges-list');
+    if (!container) return;
+    
     try {
         const response = await axios.get(`${API_BASE}/challenges`);
         const challenges = response.data;
@@ -2766,7 +2785,16 @@ async function loadChallenges() {
         
     } catch (error) {
         console.error('Failed to load challenges:', error);
-        showToast('챌린지를 불러오는데 실패했습니다', 'error');
+        // Don't show error toast, just log it
+        if (container) {
+            container.innerHTML = `
+                <div class="text-center py-12 text-gray-400">
+                    <i class="fas fa-trophy text-5xl mb-4 opacity-50"></i>
+                    <p class="text-lg">아직 진행 중인 챌린지가 없습니다</p>
+                    <p class="text-sm mt-2">첫 번째 챌린지를 만들어보세요!</p>
+                </div>
+            `;
+        }
     }
 }
 
@@ -2801,7 +2829,16 @@ async function loadBadges() {
         
     } catch (error) {
         console.error('Failed to load badges:', error);
-        showToast('배지를 불러오는데 실패했습니다', 'error');
+        // Don't show error toast, just log it
+        const container = document.getElementById('badges-collection');
+        if (container) {
+            container.innerHTML = `
+                <div class="col-span-full text-center py-8 text-gray-400">
+                    <i class="fas fa-medal text-4xl mb-3 opacity-50"></i>
+                    <p>배지를 불러올 수 없습니다</p>
+                </div>
+            `;
+        }
     }
 }
 
