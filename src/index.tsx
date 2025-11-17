@@ -206,10 +206,29 @@ app.get('/', (c) => {
             border-color: #374151 !important;
             color: #e5e7eb !important;
             font-size: 16px !important; /* Prevent zoom on iOS */
+            -webkit-text-fill-color: #e5e7eb !important; /* Fix iOS Safari */
+        }
+        [data-theme="light"] input,
+        [data-theme="light"] select,
+        [data-theme="light"] textarea {
+            background: #ffffff !important;
+            border-color: #d1d5db !important;
+            color: #111827 !important;
+            -webkit-text-fill-color: #111827 !important;
         }
         input:focus, select:focus, textarea:focus {
             border-color: #00d4ff !important;
             box-shadow: 0 0 0 3px rgba(0, 212, 255, 0.1) !important;
+        }
+        /* Mobile touch optimization */
+        @media (max-width: 767px) {
+            input, select, textarea, button {
+                min-height: 44px !important; /* iOS recommended touch target */
+            }
+            .btn-primary, button[type="submit"] {
+                min-height: 48px !important;
+                font-size: 17px !important;
+            }
         }
         /* Mobile bottom navigation */
         @media (max-width: 767px) {
@@ -789,6 +808,34 @@ app.get('/', (c) => {
         <!-- Stats View -->
         <div id="stats-view" class="hidden">
             <h2 class="text-2xl md:text-3xl font-bold gradient-text mb-4 md:mb-8">나의 통계</h2>
+            
+            <!-- AI Coach Section -->
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
+                <div class="flex justify-between items-center mb-4 md:mb-6">
+                    <h3 class="text-lg md:text-2xl font-bold text-gray-200 flex items-center">
+                        <i class="fas fa-brain text-accent-purple mr-2 md:mr-3 text-lg md:text-xl"></i>
+                        AI 코치의 조언
+                    </h3>
+                    <button id="btn-refresh-advice" class="p-2 rounded-lg hover:bg-dark-border transition text-gray-400 hover:text-accent-blue">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+                
+                <div id="ai-coach-advice" class="space-y-4">
+                    <div class="flex items-start space-x-3 bg-gradient-to-r from-purple-900/20 to-blue-900/20 p-4 rounded-lg border border-accent-purple/30">
+                        <div class="text-2xl">💪</div>
+                        <div class="flex-1">
+                            <p class="text-gray-300 leading-relaxed" id="coach-advice-text">
+                                통계 데이터를 분석 중입니다...
+                            </p>
+                        </div>
+                    </div>
+                    <div class="text-xs text-gray-500 text-center">
+                        <i class="fas fa-info-circle mr-1"></i>
+                        AI 코치는 최근 활동 데이터를 기반으로 개인화된 조언을 제공합니다
+                    </div>
+                </div>
+            </div>
             
             <!-- Goals Section -->
             <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">

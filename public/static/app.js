@@ -215,6 +215,11 @@ function setupEventListeners() {
         if (e.target.id === 'cancel-goals-modal') hideSetGoalsModal();
         if (e.target.id === 'save-goals-btn') saveGoals();
         
+        // AI Coach refresh
+        if (e.target.id === 'btn-refresh-advice' || e.target.closest('#btn-refresh-advice')) {
+            loadStats();
+        }
+        
         // Lightbox
         if (e.target.id === 'lightbox-close') closeLightbox();
         if (e.target.id === 'lightbox-prev') previousLightboxImage();
@@ -1183,6 +1188,9 @@ async function loadStats() {
         const stats = statsRes.data;
         const highlights = highlightsRes.data;
         
+        // Generate AI coach advice
+        generateCoachAdvice(stats, highlights);
+        
         document.getElementById('stats-distance').textContent = stats.total_distance_km.toFixed(1);
         document.getElementById('stats-duration').textContent = stats.total_duration_min;
         document.getElementById('stats-count').textContent = stats.workout_count;
@@ -1233,6 +1241,73 @@ async function loadStats() {
     } catch (error) {
         console.error('Failed to load stats:', error);
     }
+}
+
+// AI Coach Advice Generator
+function generateCoachAdvice(stats, highlights) {
+    const adviceElement = document.getElementById('coach-advice-text');
+    if (!adviceElement) return;
+    
+    // 통계 데이터 분석
+    const totalWorkouts = stats.workout_count || 0;
+    const totalDistance = stats.total_distance_km || 0;
+    const totalDuration = stats.total_duration_min || 0;
+    const streakDays = highlights.streak_days || 0;
+    const avgDuration = totalWorkouts > 0 ? Math.round(totalDuration / totalWorkouts) : 0;
+    
+    // 운동 빈도 분석
+    const workoutsPerWeek = totalWorkouts;
+    
+    // 조언 생성 로직
+    let advice = '';
+    let emoji = '💪';
+    
+    if (totalWorkouts === 0) {
+        advice = "아직 운동 기록이 없네요! 오늘부터 시작해보는 건 어떨까요? 작은 시작이 큰 변화를 만듭니다. 🌟";
+        emoji = "🚀";
+    } else if (streakDays >= 7) {
+        advice = `대단해요! ${streakDays}일 연속 운동 중이시네요! 🔥 이 페이스를 유지하면서 충분한 휴식도 잊지 마세요. 꾸준함이 최고의 전략입니다! 💯`;
+        emoji = "🏆";
+    } else if (streakDays >= 3) {
+        advice = `좋아요! ${streakDays}일 연속 운동 중입니다! 💪 조금만 더 힘내면 일주일 연속 달성이에요. 목표를 향해 계속 나아가세요! 🎯`;
+        emoji = "🔥";
+    } else if (workoutsPerWeek >= 5) {
+        advice = `이번 주 ${workoutsPerWeek}회 운동하셨네요! 정말 열심히 하고 계십니다! 💪 균형잡힌 운동을 위해 다양한 종류의 운동을 시도해보세요. 🌈`;
+        emoji = "⭐";
+    } else if (workoutsPerWeek >= 3) {
+        advice = `이번 주 ${workoutsPerWeek}회 운동, 훌륭합니다! 👍 건강을 위한 권장 운동량을 달성하고 계세요. 조금씩 강도를 높여보는 건 어떨까요? 📈`;
+        emoji = "💪";
+    } else if (totalDistance >= 10) {
+        advice = `총 ${totalDistance.toFixed(1)}km를 달리셨네요! 🏃 장거리 운동을 좋아하시는군요. 단거리 고강도 운동도 섞어보면 더 효과적일 거예요! ⚡`;
+        emoji = "🏃";
+    } else if (avgDuration >= 60) {
+        advice = `운동 1회 평균 ${avgDuration}분! 충분한 시간을 투자하고 계십니다. 💯 이제는 운동 빈도를 늘려보는 게 어떨까요? 🗓️`;
+        emoji = "⏱️";
+    } else if (totalWorkouts < 3) {
+        advice = `좋은 시작입니다! 🌱 운동은 꾸준함이 중요해요. 주 3-5회를 목표로 조금씩 늘려가보세요. 작은 습관이 큰 변화를 만듭니다! 💫`;
+        emoji = "🌱";
+    } else {
+        advice = `좋은 페이스로 운동하고 계세요! 👏 목표를 설정하고 달성하면서 성취감을 느껴보세요. 당신은 할 수 있습니다! 🎯`;
+        emoji = "✨";
+    }
+    
+    // 운동 종류 다양성 체크
+    if (stats.by_type && stats.by_type.length === 1 && totalWorkouts >= 5) {
+        advice += " 💡 Tip: 다양한 종류의 운동을 시도하면 전신 근육을 골고루 발달시킬 수 있어요!";
+    }
+    
+    // 조언 표시 (타이핑 효과)
+    adviceElement.parentElement.querySelector('.text-2xl').textContent = emoji;
+    adviceElement.textContent = '';
+    let i = 0;
+    const typingInterval = setInterval(() => {
+        if (i < advice.length) {
+            adviceElement.textContent += advice.charAt(i);
+            i++;
+        } else {
+            clearInterval(typingInterval);
+        }
+    }, 20);
 }
 
 function renderActivityChart(byDate) {
