@@ -2,8 +2,20 @@
 let token = localStorage.getItem('token');
 let currentView = 'feed';
 let currentUser = null;
+let allWorkouts = []; // Store all workouts for filtering
+let filteredWorkouts = []; // Store filtered results
 
 const API_BASE = '/api';
+
+// Filter state
+const filterState = {
+    search: '',
+    dateRange: 'all',
+    customDateStart: '',
+    customDateEnd: '',
+    sort: 'date', // date, distance, duration
+    workoutType: 'all'
+};
 
 // Toast notification system
 function showToast(message, type = 'success') {
@@ -210,6 +222,66 @@ function setupEventListeners() {
     
     // Theme toggle
     document.getElementById('theme-toggle')?.addEventListener('click', toggleTheme);
+    
+    // Filter event listeners
+    // Search input with debounce
+    let searchTimeout;
+    document.getElementById('search-input')?.addEventListener('input', (e) => {
+        clearTimeout(searchTimeout);
+        searchTimeout = setTimeout(() => {
+            filterState.search = e.target.value.trim();
+            applyFilters();
+        }, 300);
+    });
+    
+    // Date range select
+    document.getElementById('date-range-select')?.addEventListener('change', (e) => {
+        filterState.dateRange = e.target.value;
+        
+        if (e.target.value === 'custom') {
+            document.getElementById('custom-date-start').classList.remove('hidden');
+            document.getElementById('custom-date-end').classList.remove('hidden');
+        } else {
+            document.getElementById('custom-date-start').classList.add('hidden');
+            document.getElementById('custom-date-end').classList.add('hidden');
+        }
+        
+        applyFilters();
+    });
+    
+    // Custom date inputs
+    document.getElementById('date-start')?.addEventListener('change', (e) => {
+        filterState.customDateStart = e.target.value;
+        applyFilters();
+    });
+    
+    document.getElementById('date-end')?.addEventListener('change', (e) => {
+        filterState.customDateEnd = e.target.value;
+        applyFilters();
+    });
+    
+    // Sort buttons
+    document.addEventListener('click', (e) => {
+        const sortBtn = e.target.closest('.sort-btn');
+        if (sortBtn) {
+            document.querySelectorAll('.sort-btn').forEach(btn => btn.classList.remove('active'));
+            sortBtn.classList.add('active');
+            filterState.sort = sortBtn.dataset.sort;
+            applyFilters();
+        }
+        
+        // Type filter buttons
+        const typeBtn = e.target.closest('.type-filter-btn');
+        if (typeBtn) {
+            document.querySelectorAll('.type-filter-btn').forEach(btn => btn.classList.remove('active'));
+            typeBtn.classList.add('active');
+            filterState.workoutType = typeBtn.dataset.type;
+            applyFilters();
+        }
+    });
+    
+    // Clear all filters
+    document.getElementById('clear-filters')?.addEventListener('click', clearAllFilters);
 }
 
 // Image preview and compression
@@ -372,7 +444,12 @@ function showView(view) {
     window.scrollTo(0, 0);
     
     // Load data for view
-    if (view === 'feed') loadFeed();
+    if (view === 'feed') {
+        loadFeed().then(() => {
+            // Initialize workout type filters after workouts are loaded
+            initializeWorkoutTypeFilters();
+        });
+    }
     if (view === 'stats') loadStats();
     if (view === 'weight') loadWeight();
     if (view === 'add-workout') loadWorkoutTemplates();
@@ -477,21 +554,98 @@ function updateNavigation() {
 async function loadFeed() {
     try {
         const response = await axios.get(`${API_BASE}/workouts/feed`);
-        const workouts = response.data;
+        allWorkouts = response.data;
         
-        const feedContainer = document.getElementById('feed-container');
+        // Apply filters
+        applyFilters();
+    } catch (error) {
+        console.error('Error loading feed:', error);
+        showToast('피드를 불러오는데 실패했습니다', 'error');
+    }
+}
+
+// Apply all filters and render
+function applyFilters() {
+    let filtered = [...allWorkouts];
+    
+    // Search filter
+    if (filterState.search) {
+        const searchLower = filterState.search.toLowerCase();
+        filtered = filtered.filter(w => 
+            getWorkoutTypeName(w.workout_type).toLowerCase().includes(searchLower) ||
+            (w.memo && w.memo.toLowerCase().includes(searchLower))
+        );
+    }
+    
+    // Date range filter
+    if (filterState.dateRange !== 'all') {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
         
-        if (workouts.length === 0) {
-            feedContainer.innerHTML = `
-                <div class="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
-                    <i class="fas fa-inbox text-4xl mb-4"></i>
-                    <p>아직 운동 기록이 없습니다. 첫 운동을 기록해보세요!</p>
-                </div>
-            `;
-            return;
-        }
-        
-        feedContainer.innerHTML = workouts.map(workout => `
+        filtered = filtered.filter(w => {
+            const workoutDate = new Date(w.started_at);
+            
+            if (filterState.dateRange === 'today') {
+                return workoutDate >= today;
+            } else if (filterState.dateRange === 'week') {
+                const weekAgo = new Date(today);
+                weekAgo.setDate(weekAgo.getDate() - 7);
+                return workoutDate >= weekAgo;
+            } else if (filterState.dateRange === 'month') {
+                const monthAgo = new Date(today);
+                monthAgo.setMonth(monthAgo.getMonth() - 1);
+                return workoutDate >= monthAgo;
+            } else if (filterState.dateRange === 'custom') {
+                if (filterState.customDateStart) {
+                    const start = new Date(filterState.customDateStart);
+                    if (workoutDate < start) return false;
+                }
+                if (filterState.customDateEnd) {
+                    const end = new Date(filterState.customDateEnd);
+                    end.setHours(23, 59, 59);
+                    if (workoutDate > end) return false;
+                }
+                return true;
+            }
+            return true;
+        });
+    }
+    
+    // Workout type filter
+    if (filterState.workoutType !== 'all') {
+        filtered = filtered.filter(w => w.workout_type === filterState.workoutType);
+    }
+    
+    // Sort
+    if (filterState.sort === 'date') {
+        filtered.sort((a, b) => new Date(b.started_at) - new Date(a.started_at));
+    } else if (filterState.sort === 'distance') {
+        filtered.sort((a, b) => (b.distance_km || 0) - (a.distance_km || 0));
+    } else if (filterState.sort === 'duration') {
+        filtered.sort((a, b) => b.duration_min - a.duration_min);
+    }
+    
+    filteredWorkouts = filtered;
+    renderFeed();
+    updateResultsCount();
+    updateActiveFilters();
+}
+
+// Render feed with current filtered workouts
+function renderFeed() {
+    const feedContainer = document.getElementById('feed-container');
+    
+    if (filteredWorkouts.length === 0) {
+        feedContainer.innerHTML = `
+            <div class="bg-dark-card rounded-xl shadow-lg p-8 text-center text-gray-400 border border-dark-border">
+                <i class="fas fa-inbox text-4xl mb-4"></i>
+                <p>${allWorkouts.length === 0 ? '아직 운동 기록이 없습니다. 첫 운동을 기록해보세요!' : '검색 결과가 없습니다. 필터를 조정해보세요.'}</p>
+            </div>
+        `;
+        return;
+    }
+    
+    feedContainer.innerHTML = filteredWorkouts.map(workout => `
             <div class="workout-card bg-dark-card rounded-xl shadow-lg p-4 md:p-6 border border-dark-border">
                 <div class="flex items-start justify-between mb-4">
                     <div class="flex items-center space-x-2 md:space-x-3">
@@ -1276,6 +1430,135 @@ function toggleWorkoutMenu(workoutId) {
     });
     
     menu.classList.toggle('hidden');
+}
+
+// Filter UI functions
+function updateResultsCount() {
+    const resultsCount = document.getElementById('results-count');
+    if (resultsCount) {
+        if (allWorkouts.length === 0) {
+            resultsCount.innerHTML = '';
+        } else {
+            resultsCount.innerHTML = `
+                <i class="fas fa-list mr-2"></i>
+                ${filteredWorkouts.length}개의 운동 기록 
+                ${allWorkouts.length !== filteredWorkouts.length ? `(전체 ${allWorkouts.length}개 중)` : ''}
+            `;
+        }
+    }
+}
+
+function updateActiveFilters() {
+    const activeFiltersDiv = document.getElementById('active-filters');
+    const filterTags = document.getElementById('filter-tags');
+    
+    const tags = [];
+    
+    if (filterState.search) {
+        tags.push({ type: 'search', label: `검색: ${filterState.search}` });
+    }
+    
+    if (filterState.dateRange !== 'all') {
+        let label = '';
+        if (filterState.dateRange === 'today') label = '오늘';
+        else if (filterState.dateRange === 'week') label = '이번 주';
+        else if (filterState.dateRange === 'month') label = '이번 달';
+        else if (filterState.dateRange === 'custom') {
+            const parts = [];
+            if (filterState.customDateStart) parts.push(filterState.customDateStart);
+            if (filterState.customDateEnd) parts.push(filterState.customDateEnd);
+            label = parts.join(' ~ ') || '기간 선택';
+        }
+        tags.push({ type: 'dateRange', label: `기간: ${label}` });
+    }
+    
+    if (filterState.workoutType !== 'all') {
+        tags.push({ type: 'workoutType', label: `${getWorkoutEmoji(filterState.workoutType)} ${getWorkoutTypeName(filterState.workoutType)}` });
+    }
+    
+    if (tags.length > 0) {
+        activeFiltersDiv.classList.remove('hidden');
+        filterTags.innerHTML = tags.map(tag => `
+            <span class="filter-tag">
+                ${tag.label}
+                <button onclick="removeFilter('${tag.type}')">
+                    <i class="fas fa-times"></i>
+                </button>
+            </span>
+        `).join('');
+    } else {
+        activeFiltersDiv.classList.add('hidden');
+    }
+}
+
+function removeFilter(type) {
+    if (type === 'search') {
+        filterState.search = '';
+        document.getElementById('search-input').value = '';
+    } else if (type === 'dateRange') {
+        filterState.dateRange = 'all';
+        filterState.customDateStart = '';
+        filterState.customDateEnd = '';
+        document.getElementById('date-range-select').value = 'all';
+        document.getElementById('custom-date-start').classList.add('hidden');
+        document.getElementById('custom-date-end').classList.add('hidden');
+    } else if (type === 'workoutType') {
+        filterState.workoutType = 'all';
+        document.querySelectorAll('.type-filter-btn').forEach(btn => {
+            btn.classList.remove('active');
+            if (btn.dataset.type === 'all') btn.classList.add('active');
+        });
+    }
+    
+    applyFilters();
+}
+
+function clearAllFilters() {
+    filterState.search = '';
+    filterState.dateRange = 'all';
+    filterState.customDateStart = '';
+    filterState.customDateEnd = '';
+    filterState.sort = 'date';
+    filterState.workoutType = 'all';
+    
+    // Reset UI
+    document.getElementById('search-input').value = '';
+    document.getElementById('date-range-select').value = 'all';
+    document.getElementById('custom-date-start').classList.add('hidden');
+    document.getElementById('custom-date-end').classList.add('hidden');
+    
+    document.querySelectorAll('.sort-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.sort === 'date') btn.classList.add('active');
+    });
+    
+    document.querySelectorAll('.type-filter-btn').forEach(btn => {
+        btn.classList.remove('active');
+        if (btn.dataset.type === 'all') btn.classList.add('active');
+    });
+    
+    applyFilters();
+}
+
+function initializeWorkoutTypeFilters() {
+    const container = document.getElementById('workout-type-filters');
+    if (!container) return;
+    
+    // Get unique workout types from all workouts
+    const types = [...new Set(allWorkouts.map(w => w.workout_type))];
+    
+    // Add filter buttons for each type
+    const buttons = types.map(type => `
+        <button data-type="${type}" class="type-filter-btn px-3 py-2 rounded-lg border transition text-sm">
+            ${getWorkoutEmoji(type)} ${getWorkoutTypeName(type)}
+        </button>
+    `).join('');
+    
+    // Keep the "all" button and add others
+    const allButton = container.querySelector('[data-type="all"]');
+    if (allButton) {
+        container.innerHTML = allButton.outerHTML + buttons;
+    }
 }
 
 async function deleteWorkout(workoutId) {

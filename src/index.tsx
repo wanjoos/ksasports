@@ -257,6 +257,40 @@ app.get('/', (c) => {
         .animate-slide-in {
             animation: slide-in 0.3s ease-out;
         }
+        /* Filter and Sort Buttons */
+        .sort-btn, .type-filter-btn {
+            background: var(--card-bg);
+            border-color: var(--border-color);
+            color: var(--text-secondary);
+        }
+        .sort-btn:hover, .type-filter-btn:hover {
+            border-color: rgba(0, 212, 255, 0.5);
+            color: #00d4ff;
+        }
+        .sort-btn.active, .type-filter-btn.active {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(52, 211, 153, 0.2));
+            border-color: #00d4ff;
+            color: #00d4ff;
+        }
+        .filter-tag {
+            background: linear-gradient(135deg, rgba(0, 212, 255, 0.2), rgba(52, 211, 153, 0.2));
+            border: 1px solid rgba(0, 212, 255, 0.3);
+            color: #00d4ff;
+            padding: 4px 12px;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .filter-tag button {
+            color: #00d4ff;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        .filter-tag button:hover {
+            opacity: 1;
+        }
     </style>
 </head>
 <body class="bg-dark-bg text-gray-100">
@@ -369,6 +403,92 @@ app.get('/', (c) => {
                     <span>운동 기록</span>
                 </button>
             </div>
+            
+            <!-- Search & Filter Section -->
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-4 md:p-6 border border-dark-border mb-4 md:mb-6">
+                <!-- Search Bar -->
+                <div class="mb-4">
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+                        <input type="text" id="search-input" placeholder="운동 제목, 메모 검색..." 
+                            class="w-full pl-12 pr-4 py-3 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200 placeholder-gray-500">
+                    </div>
+                </div>
+                
+                <!-- Filter Controls -->
+                <div class="space-y-4">
+                    <!-- Date Range -->
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+                        <div>
+                            <label class="block text-xs text-gray-400 mb-2">기간 선택</label>
+                            <select id="date-range-select" class="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200 text-sm">
+                                <option value="all">전체</option>
+                                <option value="today">오늘</option>
+                                <option value="week">이번 주</option>
+                                <option value="month">이번 달</option>
+                                <option value="custom">직접 선택</option>
+                            </select>
+                        </div>
+                        <div id="custom-date-start" class="hidden">
+                            <label class="block text-xs text-gray-400 mb-2">시작일</label>
+                            <input type="date" id="date-start" class="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200 text-sm">
+                        </div>
+                        <div id="custom-date-end" class="hidden">
+                            <label class="block text-xs text-gray-400 mb-2">종료일</label>
+                            <input type="date" id="date-end" class="w-full px-3 py-2 bg-dark-bg border border-dark-border rounded-lg focus:outline-none focus:ring-2 focus:ring-accent-blue text-gray-200 text-sm">
+                        </div>
+                    </div>
+                    
+                    <!-- Sort Options -->
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-2">정렬</label>
+                        <div class="flex flex-wrap gap-2">
+                            <button data-sort="date" class="sort-btn active px-3 py-2 rounded-lg border transition text-sm">
+                                <i class="fas fa-calendar mr-1"></i>최신순
+                            </button>
+                            <button data-sort="distance" class="sort-btn px-3 py-2 rounded-lg border transition text-sm">
+                                <i class="fas fa-route mr-1"></i>거리순
+                            </button>
+                            <button data-sort="duration" class="sort-btn px-3 py-2 rounded-lg border transition text-sm">
+                                <i class="fas fa-clock mr-1"></i>시간순
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- Workout Type Filter -->
+                    <div>
+                        <label class="block text-xs text-gray-400 mb-2">운동 종류</label>
+                        <div id="workout-type-filters" class="flex flex-wrap gap-2">
+                            <button data-type="all" class="type-filter-btn active px-3 py-2 rounded-lg border transition text-sm">
+                                <i class="fas fa-th mr-1"></i>전체
+                            </button>
+                            <!-- Will be populated by JS -->
+                        </div>
+                    </div>
+                    
+                    <!-- Active Filters Display -->
+                    <div id="active-filters" class="hidden pt-3 border-t border-dark-border">
+                        <div class="flex items-center justify-between">
+                            <div class="flex items-center space-x-2 text-sm">
+                                <i class="fas fa-filter text-accent-blue"></i>
+                                <span class="text-gray-400">활성 필터:</span>
+                                <div id="filter-tags" class="flex flex-wrap gap-2">
+                                    <!-- Filter tags will be populated here -->
+                                </div>
+                            </div>
+                            <button id="clear-filters" class="text-accent-blue hover:text-accent-blue-light text-sm">
+                                <i class="fas fa-times-circle mr-1"></i>초기화
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Results Count -->
+            <div id="results-count" class="mb-4 text-sm text-gray-400">
+                <!-- Will show filtered results count -->
+            </div>
+            
             <div id="feed-container" class="space-y-4 md:space-y-6">
                 <!-- Feed items will be populated here -->
             </div>
