@@ -23,7 +23,39 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
     
     setupEventListeners();
+    registerServiceWorker();
+    showInstallPrompt();
 });
+
+// Register Service Worker for PWA
+async function registerServiceWorker() {
+    if ('serviceWorker' in navigator) {
+        try {
+            const registration = await navigator.serviceWorker.register('/sw.js');
+            console.log('Service Worker registered:', registration);
+        } catch (error) {
+            console.log('Service Worker registration failed:', error);
+        }
+    }
+}
+
+// PWA Install Prompt
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+});
+
+function showInstallPrompt() {
+    // Show install button if PWA is installable
+    window.addEventListener('beforeinstallprompt', (e) => {
+        e.preventDefault();
+        deferredPrompt = e;
+        
+        // Could show a custom install button here
+        console.log('PWA is installable');
+    });
+}
 
 // Setup event listeners
 function setupEventListeners() {
@@ -54,6 +86,7 @@ function setupEventListeners() {
         // Buttons
         if (e.target.id === 'btn-add-workout') showView('add-workout');
         if (e.target.id === 'btn-cancel-workout') showView('feed');
+        if (e.target.id === 'btn-clear-form') clearWorkoutForm();
         if (e.target.id === 'btn-add-weight') showAddWeightModal();
         if (e.target.id === 'close-weight-modal') hideAddWeightModal();
         if (e.target.id === 'cancel-weight-modal') hideAddWeightModal();
@@ -193,6 +226,48 @@ function showView(view) {
     if (view === 'feed') loadFeed();
     if (view === 'stats') loadStats();
     if (view === 'weight') loadWeight();
+    if (view === 'add-workout') loadWorkoutTemplates();
+}
+
+// Workout templates
+const workoutTemplates = [
+    { type: 'RUN', emoji: '🏃', name: '러닝', distance: 5, duration: 30 },
+    { type: 'WALK', emoji: '🚶', name: '걷기', distance: 3, duration: 40 },
+    { type: 'BIKE', emoji: '🚴', name: '사이클', distance: 15, duration: 60 },
+    { type: 'BADMINTON', emoji: '🏸', name: '배드민턴', distance: 0, duration: 60 }
+];
+
+function loadWorkoutTemplates() {
+    const container = document.getElementById('workout-templates');
+    container.innerHTML = workoutTemplates.map(template => `
+        <button type="button" onclick="applyTemplate('${template.type}')" 
+            class="stat-card rounded-xl p-4 text-center hover:scale-105 transition-transform">
+            <div class="text-3xl mb-2">${template.emoji}</div>
+            <div class="text-sm text-gray-300 font-medium">${template.name}</div>
+        </button>
+    `).join('');
+}
+
+function applyTemplate(type) {
+    const template = workoutTemplates.find(t => t.type === type);
+    if (!template) return;
+    
+    document.getElementById('workout-type').value = type;
+    if (template.distance > 0) {
+        document.getElementById('workout-distance').value = template.distance;
+    }
+    document.getElementById('workout-duration').value = template.duration;
+    
+    // Scroll to form
+    document.getElementById('add-workout-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function clearWorkoutForm() {
+    document.getElementById('add-workout-form').reset();
+    document.getElementById('image-preview').innerHTML = '';
+    const now = new Date();
+    now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
+    document.getElementById('workout-started').value = now.toISOString().slice(0, 16);
 }
 
 function updateMobileNavigation() {
@@ -442,6 +517,9 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // Stats functions
+let activityChart = null;
+let workoutTypeChart = null;
+
 async function loadStats() {
     try {
         const [statsRes, highlightsRes] = await Promise.all([
@@ -456,38 +534,47 @@ async function loadStats() {
         document.getElementById('stats-duration').textContent = stats.total_duration_min;
         document.getElementById('stats-count').textContent = stats.workout_count;
         
-        // By type
+        // Render activity trend chart
+        renderActivityChart(stats.by_date);
+        
+        // Render workout type pie chart
+        renderWorkoutTypeChart(stats.by_type);
+        
+        // By type list
         const byTypeContainer = document.getElementById('stats-by-type');
         byTypeContainer.innerHTML = stats.by_type.map(type => `
-            <div class="flex items-center justify-between p-3 bg-gray-50 rounded">
+            <div class="flex items-center justify-between p-3 bg-dark-bg rounded-lg border border-dark-border">
                 <div class="flex items-center space-x-3">
                     <span class="text-2xl">${getWorkoutEmoji(type.workout_type)}</span>
-                    <span class="font-medium">${getWorkoutTypeName(type.workout_type)}</span>
+                    <span class="font-medium text-gray-200">${getWorkoutTypeName(type.workout_type)}</span>
                 </div>
-                <div class="text-right text-sm text-gray-600">
+                <div class="text-right text-sm text-gray-300">
                     <div>${type.count}회 · ${type.duration_min}분</div>
-                    ${type.distance_km > 0 ? `<div>${type.distance_km.toFixed(1)} km</div>` : ''}
+                    ${type.distance_km > 0 ? `<div class="text-accent-blue">${type.distance_km.toFixed(1)} km</div>` : ''}
                 </div>
             </div>
-        `).join('') || '<p class="text-gray-500">데이터가 없습니다</p>';
+        `).join('') || '<p class="text-gray-400">데이터가 없습니다</p>';
         
         // Highlights
         const highlightsContainer = document.getElementById('stats-highlights');
         highlightsContainer.innerHTML = `
-            <div class="text-center">
-                <div class="text-3xl mb-2">🏆</div>
-                <div class="text-sm text-gray-600">최장 거리</div>
-                <div class="text-xl font-bold text-gray-800">${highlights.longest_distance_km.toFixed(1)} km</div>
+            <div class="stat-card rounded-xl p-6 text-center">
+                <div class="text-4xl mb-3">🏆</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wider mb-2">최장 거리</div>
+                <div class="text-3xl font-bold text-accent-blue">${highlights.longest_distance_km.toFixed(1)}</div>
+                <div class="text-sm text-gray-300 mt-1">km</div>
             </div>
-            <div class="text-center">
-                <div class="text-3xl mb-2">⏱️</div>
-                <div class="text-sm text-gray-600">최장 시간</div>
-                <div class="text-xl font-bold text-gray-800">${highlights.longest_duration_min} 분</div>
+            <div class="stat-card rounded-xl p-6 text-center">
+                <div class="text-4xl mb-3">⏱️</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wider mb-2">최장 시간</div>
+                <div class="text-3xl font-bold text-accent-green">${highlights.longest_duration_min}</div>
+                <div class="text-sm text-gray-300 mt-1">분</div>
             </div>
-            <div class="text-center">
-                <div class="text-3xl mb-2">🔥</div>
-                <div class="text-sm text-gray-600">연속 운동일</div>
-                <div class="text-xl font-bold text-gray-800">${highlights.streak_days} 일</div>
+            <div class="stat-card rounded-xl p-6 text-center">
+                <div class="text-4xl mb-3">🔥</div>
+                <div class="text-xs text-gray-400 uppercase tracking-wider mb-2">연속 운동일</div>
+                <div class="text-3xl font-bold text-accent-orange">${highlights.streak_days}</div>
+                <div class="text-sm text-gray-300 mt-1">일</div>
             </div>
         `;
     } catch (error) {
@@ -495,30 +582,162 @@ async function loadStats() {
     }
 }
 
+function renderActivityChart(byDate) {
+    const ctx = document.getElementById('activity-chart');
+    if (!ctx) return;
+    
+    // Destroy existing chart
+    if (activityChart) {
+        activityChart.destroy();
+    }
+    
+    const dates = byDate.map(d => {
+        const date = new Date(d.date);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    });
+    const distances = byDate.map(d => d.distance_km);
+    const durations = byDate.map(d => d.duration_min);
+    
+    activityChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [
+                {
+                    label: '거리 (km)',
+                    data: distances,
+                    borderColor: '#00d4ff',
+                    backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    yAxisID: 'y'
+                },
+                {
+                    label: '시간 (분)',
+                    data: durations,
+                    borderColor: '#00ff88',
+                    backgroundColor: 'rgba(0, 255, 136, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    yAxisID: 'y1'
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            interaction: {
+                mode: 'index',
+                intersect: false
+            },
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#e5e7eb',
+                        font: { size: 12 }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9ca3af' }
+                },
+                y: {
+                    type: 'linear',
+                    position: 'left',
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#00d4ff' }
+                },
+                y1: {
+                    type: 'linear',
+                    position: 'right',
+                    grid: { display: false },
+                    ticks: { color: '#00ff88' }
+                }
+            }
+        }
+    });
+}
+
+function renderWorkoutTypeChart(byType) {
+    const ctx = document.getElementById('workout-type-chart');
+    if (!ctx) return;
+    
+    // Destroy existing chart
+    if (workoutTypeChart) {
+        workoutTypeChart.destroy();
+    }
+    
+    const labels = byType.map(t => getWorkoutTypeName(t.workout_type));
+    const data = byType.map(t => t.count);
+    const colors = ['#00d4ff', '#00ff88', '#ff6b35', '#a855f7', '#fbbf24', '#ec4899'];
+    
+    workoutTypeChart = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: labels,
+            datasets: [{
+                data: data,
+                backgroundColor: colors.slice(0, data.length),
+                borderColor: '#141b2d',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                    labels: {
+                        color: '#e5e7eb',
+                        font: { size: 11 },
+                        padding: 10
+                    }
+                }
+            }
+        }
+    });
+}
+
 // Weight functions
+let weightChart = null;
+
 async function loadWeight() {
     try {
         const response = await axios.get(`${API_BASE}/me/weights`);
         const weights = response.data;
         
         const weightList = document.getElementById('weight-list');
+        const weightChartCanvas = document.getElementById('weight-chart');
+        const weightChartEmpty = document.getElementById('weight-chart-empty');
         
         if (weights.length === 0) {
+            weightChartCanvas.classList.add('hidden');
+            weightChartEmpty.classList.remove('hidden');
             weightList.innerHTML = `
-                <div class="bg-white rounded-lg shadow-md p-8 text-center text-gray-500">
+                <div class="bg-dark-card rounded-lg shadow-md p-8 text-center text-gray-400 border border-dark-border">
                     <p>체중 기록이 없습니다</p>
                 </div>
             `;
             return;
         }
         
+        // Show chart
+        weightChartCanvas.classList.remove('hidden');
+        weightChartEmpty.classList.add('hidden');
+        
+        // Render weight chart
+        renderWeightChart(weights);
+        
         weightList.innerHTML = weights.map(weight => `
-            <div class="bg-white rounded-lg shadow-md p-4 flex justify-between items-center">
+            <div class="bg-dark-card rounded-lg shadow-md p-4 flex justify-between items-center border border-dark-border">
                 <div>
-                    <div class="font-semibold text-gray-800">${weight.weight_kg} kg</div>
-                    <div class="text-sm text-gray-500">${formatDate(weight.logged_at)}</div>
+                    <div class="font-semibold text-accent-blue text-lg">${weight.weight_kg} kg</div>
+                    <div class="text-sm text-gray-400">${formatDate(weight.logged_at)}</div>
                 </div>
-                <button onclick="deleteWeight('${weight.id}')" class="text-red-500 hover:text-red-700 transition">
+                <button onclick="deleteWeight('${weight.id}')" class="text-red-400 hover:text-red-300 transition">
                     <i class="fas fa-trash"></i>
                 </button>
             </div>
@@ -526,6 +745,81 @@ async function loadWeight() {
     } catch (error) {
         console.error('Failed to load weight:', error);
     }
+}
+
+function renderWeightChart(weights) {
+    const ctx = document.getElementById('weight-chart');
+    if (!ctx) return;
+    
+    // Destroy existing chart
+    if (weightChart) {
+        weightChart.destroy();
+    }
+    
+    // Sort by date
+    const sortedWeights = [...weights].sort((a, b) => 
+        new Date(a.logged_at) - new Date(b.logged_at)
+    );
+    
+    const dates = sortedWeights.map(w => {
+        const date = new Date(w.logged_at);
+        return `${date.getMonth() + 1}/${date.getDate()}`;
+    });
+    const data = sortedWeights.map(w => w.weight_kg);
+    
+    weightChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+            labels: dates,
+            datasets: [{
+                label: '체중 (kg)',
+                data: data,
+                borderColor: '#00d4ff',
+                backgroundColor: 'rgba(0, 212, 255, 0.1)',
+                tension: 0.4,
+                fill: true,
+                pointRadius: 5,
+                pointHoverRadius: 7,
+                pointBackgroundColor: '#00d4ff',
+                pointBorderColor: '#141b2d',
+                pointBorderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    labels: {
+                        color: '#e5e7eb',
+                        font: { size: 12 }
+                    }
+                },
+                tooltip: {
+                    callbacks: {
+                        label: function(context) {
+                            return `${context.parsed.y.toFixed(1)} kg`;
+                        }
+                    }
+                }
+            },
+            scales: {
+                x: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { color: '#9ca3af' }
+                },
+                y: {
+                    grid: { color: 'rgba(255, 255, 255, 0.05)' },
+                    ticks: { 
+                        color: '#00d4ff',
+                        callback: function(value) {
+                            return value + ' kg';
+                        }
+                    }
+                }
+            }
+        }
+    });
 }
 
 function showAddWeightModal() {

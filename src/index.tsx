@@ -44,6 +44,9 @@ app.get('/', (c) => {
     <meta name="theme-color" content="#0a0e27">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="Workout">
+    <link rel="manifest" href="/manifest.json">
+    <link rel="apple-touch-icon" href="/icon-192.png">
     <title>Workout Together - 함께하는 운동 기록</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.4.0/css/all.min.css" rel="stylesheet">
@@ -299,8 +302,18 @@ app.get('/', (c) => {
         <!-- Add Workout View -->
         <div id="add-workout-view" class="hidden">
             <div class="max-w-2xl mx-auto">
+                <!-- Quick Templates -->
+                <div id="workout-templates" class="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <!-- Will be populated by JS -->
+                </div>
+                
                 <div class="bg-dark-card rounded-xl shadow-2xl p-8 border border-dark-border">
-                    <h2 class="text-3xl font-bold gradient-text mb-8">운동 기록 추가</h2>
+                    <div class="flex justify-between items-center mb-8">
+                        <h2 class="text-3xl font-bold gradient-text">운동 기록 추가</h2>
+                        <button type="button" id="btn-clear-form" class="text-sm text-gray-400 hover:text-accent-blue">
+                            <i class="fas fa-redo mr-1"></i>초기화
+                        </button>
+                    </div>
                     <form id="add-workout-form" class="space-y-5">
                         <div>
                             <label class="block text-sm font-medium text-gray-300 mb-2">운동 종류</label>
@@ -377,14 +390,30 @@ app.get('/', (c) => {
                 </div>
             </div>
 
+            <!-- Weekly Activity Chart -->
+            <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
+                <h3 class="text-lg md:text-2xl font-bold text-gray-200 mb-4 md:mb-6 flex items-center">
+                    <i class="fas fa-chart-line text-accent-green mr-2 md:mr-3 text-lg md:text-xl"></i>
+                    주간 활동 추세
+                </h3>
+                <div class="h-64 md:h-80">
+                    <canvas id="activity-chart"></canvas>
+                </div>
+            </div>
+
             <!-- Activity By Type -->
             <div class="bg-dark-card rounded-xl md:rounded-2xl shadow-2xl p-5 md:p-8 border border-dark-border mb-4 md:mb-8">
                 <h3 class="text-lg md:text-2xl font-bold text-gray-200 mb-4 md:mb-6 flex items-center">
                     <i class="fas fa-chart-bar text-accent-blue mr-2 md:mr-3 text-lg md:text-xl"></i>
                     운동 종류별 통계
                 </h3>
-                <div id="stats-by-type" class="space-y-3 md:space-y-4">
-                    <!-- Will be populated by JS -->
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div class="h-64">
+                        <canvas id="workout-type-chart"></canvas>
+                    </div>
+                    <div id="stats-by-type" class="space-y-3">
+                        <!-- Will be populated by JS -->
+                    </div>
                 </div>
             </div>
 
@@ -415,7 +444,10 @@ app.get('/', (c) => {
                     <i class="fas fa-chart-line text-accent-blue mr-2 md:mr-3 text-lg md:text-xl"></i>
                     체중 변화 추이
                 </h3>
-                <div id="weight-chart" class="h-48 md:h-64 flex items-center justify-center text-gray-400 text-sm md:text-base">
+                <div class="h-64 md:h-80">
+                    <canvas id="weight-chart"></canvas>
+                </div>
+                <div id="weight-chart-empty" class="hidden h-48 md:h-64 flex items-center justify-center text-gray-400 text-sm md:text-base">
                     체중 기록이 없습니다
                 </div>
             </div>
@@ -474,6 +506,7 @@ app.get('/', (c) => {
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/axios@1.6.0/dist/axios.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <script src="/static/app.js"></script>
 </body>
 </html>
