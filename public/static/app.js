@@ -241,6 +241,13 @@ async function loadFeed() {
                         ${workout.calories ? `<span><i class="fas fa-fire mr-1"></i>${workout.calories} kcal</span>` : ''}
                     </div>
                     ${workout.memo ? `<p class="mt-3 text-gray-700">${workout.memo}</p>` : ''}
+                    ${workout.images && workout.images.length > 0 ? `
+                        <div class="mt-3 grid ${workout.images.length === 1 ? 'grid-cols-1' : 'grid-cols-2 md:grid-cols-3'} gap-2">
+                            ${workout.images.map(img => `
+                                <img src="${img}" alt="운동 이미지" class="rounded-lg object-cover w-full h-48 cursor-pointer" onclick="window.open('${img}', '_blank')">
+                            `).join('')}
+                        </div>
+                    ` : ''}
                 </div>
                 
                 <div class="flex items-center space-x-6 pt-4 border-t">
@@ -280,31 +287,99 @@ async function toggleLike(workoutId) {
 async function handleAddWorkout(e) {
     e.preventDefault();
     
-    const workout_type = document.getElementById('workout-type').value;
-    const started_at = document.getElementById('workout-started').value + ':00Z';
-    const duration_min = parseInt(document.getElementById('workout-duration').value);
-    const distance_km = document.getElementById('workout-distance').value;
-    const calories = document.getElementById('workout-calories').value;
-    const memo = document.getElementById('workout-memo').value;
-    
-    const data = {
-        workout_type,
-        started_at,
-        duration_min,
-        distance_km: distance_km ? parseFloat(distance_km) : null,
-        calories: calories ? parseInt(calories) : null,
-        memo: memo || null
-    };
+    const submitBtn = document.getElementById('submit-workout-btn');
+    const submitText = document.getElementById('submit-workout-text');
+    const originalText = submitText.textContent;
     
     try {
+        // Disable button and show loading
+        submitBtn.disabled = true;
+        submitText.textContent = '저장 중...';
+        
+        const workout_type = document.getElementById('workout-type').value;
+        const started_at = document.getElementById('workout-started').value + ':00Z';
+        const duration_min = parseInt(document.getElementById('workout-duration').value);
+        const distance_km = document.getElementById('workout-distance').value;
+        const calories = document.getElementById('workout-calories').value;
+        const memo = document.getElementById('workout-memo').value;
+        
+        // Upload images first
+        const imageFiles = document.getElementById('workout-images').files;
+        const image_urls = [];
+        
+        if (imageFiles.length > 0) {
+            submitText.textContent = `이미지 업로드 중... (0/${imageFiles.length})`;
+            
+            for (let i = 0; i < Math.min(imageFiles.length, 3); i++) {
+                const formData = new FormData();
+                formData.append('image', imageFiles[i]);
+                
+                const uploadResponse = await axios.post(`${API_BASE}/upload`, formData, {
+                    headers: {
+                        'Content-Type': 'multipart/form-data'
+                    }
+                });
+                
+                image_urls.push(uploadResponse.data.url);
+                submitText.textContent = `이미지 업로드 중... (${i + 1}/${imageFiles.length})`;
+            }
+        }
+        
+        submitText.textContent = '기록 저장 중...';
+        
+        const data = {
+            workout_type,
+            started_at,
+            duration_min,
+            distance_km: distance_km ? parseFloat(distance_km) : null,
+            calories: calories ? parseInt(calories) : null,
+            memo: memo || null,
+            image_urls: image_urls.length > 0 ? image_urls : null
+        };
+        
         await axios.post(`${API_BASE}/workouts`, data);
+        
         showView('feed');
         document.getElementById('add-workout-form').reset();
+        document.getElementById('image-preview').innerHTML = '';
     } catch (error) {
         console.error('Failed to add workout:', error);
         alert('운동 기록 추가에 실패했습니다: ' + (error.response?.data?.error || error.message));
+    } finally {
+        submitBtn.disabled = false;
+        submitText.textContent = originalText;
     }
 }
+
+// Image preview handler
+document.addEventListener('DOMContentLoaded', () => {
+    const imageInput = document.getElementById('workout-images');
+    if (imageInput) {
+        imageInput.addEventListener('change', (e) => {
+            const files = e.target.files;
+            const preview = document.getElementById('image-preview');
+            preview.innerHTML = '';
+            
+            for (let i = 0; i < Math.min(files.length, 3); i++) {
+                const file = files[i];
+                const reader = new FileReader();
+                
+                reader.onload = (e) => {
+                    const img = document.createElement('img');
+                    img.src = e.target.result;
+                    img.className = 'h-20 w-20 object-cover rounded border';
+                    preview.appendChild(img);
+                };
+                
+                reader.readAsDataURL(file);
+            }
+            
+            if (files.length > 3) {
+                alert('최대 3장까지만 업로드할 수 있습니다.');
+            }
+        });
+    }
+});
 
 // Stats functions
 async function loadStats() {

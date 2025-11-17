@@ -8,6 +8,7 @@ import auth from './routes/auth';
 import workouts from './routes/workouts';
 import stats from './routes/stats';
 import weight from './routes/weight';
+import upload from './routes/upload';
 
 const app = new Hono<{ Bindings: Bindings }>();
 
@@ -22,6 +23,13 @@ app.route('/api/auth', auth);
 app.route('/api/workouts', workouts);
 app.route('/api/me/stats', stats);
 app.route('/api/me/weights', weight);
+app.route('/api/upload', upload);
+
+// Serve images from R2
+app.get('/images/*', async (c) => {
+  const path = c.req.path.replace('/images/', '');
+  return c.redirect(`/api/upload/${path}`);
+});
 
 // Home page
 app.get('/', (c) => {
@@ -157,8 +165,15 @@ app.get('/', (c) => {
                             <label class="block text-sm font-medium text-gray-700 mb-1">메모</label>
                             <textarea id="workout-memo" rows="3" class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"></textarea>
                         </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">이미지 (선택, 최대 3장)</label>
+                            <input type="file" id="workout-images" accept="image/jpeg,image/jpg,image/png,image/webp" multiple class="w-full px-4 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                            <div id="image-preview" class="mt-2 flex space-x-2"></div>
+                        </div>
                         <div class="flex space-x-4">
-                            <button type="submit" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">저장</button>
+                            <button type="submit" id="submit-workout-btn" class="flex-1 bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition">
+                                <span id="submit-workout-text">저장</span>
+                            </button>
                             <button type="button" id="btn-cancel-workout" class="flex-1 bg-gray-300 text-gray-700 py-2 rounded-lg hover:bg-gray-400 transition">취소</button>
                         </div>
                     </form>
