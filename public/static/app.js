@@ -43,15 +43,27 @@ function setupEventListeners() {
         if (e.target.id === 'nav-logout') handleLogout();
         if (e.target.id === 'btn-add-workout') showView('add-workout');
         if (e.target.id === 'btn-cancel-workout') showView('feed');
+        if (e.target.id === 'btn-add-weight') showAddWeightModal();
+        if (e.target.id === 'close-weight-modal') hideAddWeightModal();
+        if (e.target.id === 'cancel-weight-modal') hideAddWeightModal();
     });
     
     // Add workout form
     document.getElementById('add-workout-form')?.addEventListener('submit', handleAddWorkout);
     
+    // Add weight form
+    document.getElementById('add-weight-form')?.addEventListener('submit', handleAddWeight);
+    
     // Set default datetime
     const now = new Date();
     now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
     document.getElementById('workout-started').value = now.toISOString().slice(0, 16);
+    
+    // Set default date for weight
+    const today = new Date().toISOString().split('T')[0];
+    if (document.getElementById('weight-date')) {
+        document.getElementById('weight-date').value = today;
+    }
 }
 
 // Auth functions
@@ -371,10 +383,58 @@ async function loadWeight() {
                     <div class="font-semibold text-gray-800">${weight.weight_kg} kg</div>
                     <div class="text-sm text-gray-500">${formatDate(weight.logged_at)}</div>
                 </div>
+                <button onclick="deleteWeight('${weight.id}')" class="text-red-500 hover:text-red-700 transition">
+                    <i class="fas fa-trash"></i>
+                </button>
             </div>
         `).join('');
     } catch (error) {
         console.error('Failed to load weight:', error);
+    }
+}
+
+function showAddWeightModal() {
+    const modal = document.getElementById('add-weight-modal');
+    modal.classList.remove('hidden');
+    
+    // Set default date
+    const today = new Date().toISOString().split('T')[0];
+    document.getElementById('weight-date').value = today;
+}
+
+function hideAddWeightModal() {
+    const modal = document.getElementById('add-weight-modal');
+    modal.classList.add('hidden');
+    document.getElementById('add-weight-form').reset();
+}
+
+async function handleAddWeight(e) {
+    e.preventDefault();
+    
+    const weight_kg = parseFloat(document.getElementById('weight-kg').value);
+    const logged_at = document.getElementById('weight-date').value;
+    
+    try {
+        await axios.post(`${API_BASE}/me/weights`, { weight_kg, logged_at });
+        hideAddWeightModal();
+        await loadWeight();
+    } catch (error) {
+        console.error('Failed to add weight:', error);
+        alert('체중 기록 추가에 실패했습니다: ' + (error.response?.data?.error || error.message));
+    }
+}
+
+async function deleteWeight(weightId) {
+    if (!confirm('이 체중 기록을 삭제하시겠습니까?')) {
+        return;
+    }
+    
+    try {
+        await axios.delete(`${API_BASE}/me/weights/${weightId}`);
+        await loadWeight();
+    } catch (error) {
+        console.error('Failed to delete weight:', error);
+        alert('체중 기록 삭제에 실패했습니다');
     }
 }
 
